@@ -19,7 +19,7 @@ export function poseLine(angles) {
 export function normalizeShape(text) {
   const t = String(text || "").toLowerCase();
   if (/(삼각형|세모|triangle)/.test(t)) return "triangle";
-  if (/(원형|동그라미|원\b|circle)/.test(t)) return "circle";
+  if (/(원형|동그라미|원|circle)/.test(t)) return "circle";
   if (/(십자|더하기|cross)/.test(t)) return "cross";
   return null;
 }
