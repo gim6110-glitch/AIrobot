@@ -11,6 +11,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install web dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate the 3D module syntax
+        run: |
+          node --check three-scene.js
+          node --check simulator-motion.js
       - name: Syntax checks
         run: |
           node --check app.js
