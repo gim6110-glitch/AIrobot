@@ -42,7 +42,10 @@ function say(text,who="assistant") {
   $("messages").append(el);
   $("messages").scrollTop=$("messages").scrollHeight;
 }
-function status(text) { $("sceneStatus").textContent=text; }
+function status(text) {
+  $("sceneStatus").textContent=text;
+  if($("scene3dStatus"))$("scene3dStatus").textContent=(state.mode==="sim"?"3D 가상 동작":"실물 모터 명령 참고 표시")+" · "+text+" · 실제 위치 센서값 아님";
+}
 function sleep(ms){return new Promise(ok=>setTimeout(ok,ms));}
 function notifyError(err){ const message=err instanceof Error?err.message:String(err);log(message,"error");say("실행 보류: "+message);status("실행 보류");}
 function sync3D(includeObjects=false) {
