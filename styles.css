@@ -114,3 +114,20 @@ footer{text-align:center;font-size:10px;color:#7893a0;padding:19px 10px 30px;let
 .axis-check label{font-size:12px;font-weight:800;color:#38596d}
 .axis-check select{width:100%}
 @media(max-width:650px){.axis-check{grid-template-columns:1fr 1fr}.axis-check label{grid-column:span 2}.axis-check button{grid-column:span 2}}
+
+
+/* Live Three.js viewport, shared with the 2D fallback. */
+.viewport-controls{display:flex;justify-content:space-between;gap:9px;align-items:center;margin-bottom:12px}
+.view-tabs{display:flex;background:#e8f1f4;padding:4px;border-radius:11px;border:1px solid #d2e2e7;gap:4px}
+.view-tab{border:0;border-radius:8px;padding:9px 14px;color:#4a6b79;background:transparent;font-weight:800;font-size:12px}
+.view-tab.active{color:#fff;background:#0a7f80;box-shadow:0 2px 6px #083b501a}
+.scene3d-panel{position:relative;min-height:420px;border:1px solid #d5e4eb;border-radius:13px;background:#eaf3f6;overflow:hidden}
+.scene3d-host{width:100%;height:480px;min-height:420px;touch-action:none;outline:none}
+.scene3d-host canvas{width:100%;height:100%;display:block}
+.scene3d-hint{position:absolute;bottom:12px;left:13px;right:13px;max-width:520px;pointer-events:none;border:1px solid #c8dce4;background:#ffffffdf;backdrop-filter:blur(4px);border-radius:9px;padding:8px 11px;color:#34596b;font-size:11px;line-height:1.6}
+.scene3d-hint strong{color:#096e72}
+.scene3d-status{position:absolute;top:13px;left:13px;max-width:calc(100% - 26px);background:#ffffffef;border:1px solid #d5e5ea;border-radius:9px;padding:8px 11px;color:#24566b;font-size:12px;font-weight:700;pointer-events:none}
+#scene2dPanel[hidden],#scene3dPanel[hidden]{display:none!important}
+#scene2dPanel{min-height:auto}
+.camera-reset{padding:8px 12px;font-size:12px}
+@media(max-width:650px){.scene3d-host{height:370px;min-height:330px}.scene3d-panel{min-height:350px}.scene3d-hint{font-size:10px}.view-tab{padding:8px 9px}}
