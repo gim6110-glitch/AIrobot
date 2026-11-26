@@ -41,7 +41,7 @@
       </div>
       <div id="scene3dPanel" class="scene3d-panel">
         <div id="scene3d" class="scene3d-host" aria-label="회전 및 확대가 가능한 3차원 로봇팔 시뮬레이션"></div>
-        <div class="scene3d-hint"><strong>3D 참고 형상</strong> · 드래그: 회전 · 휠: 확대 · 오른쪽 드래그: 이동</div>
+        <div class="scene3d-hint"><strong>3D 참고 형상</strong> · 왼쪽·가운데 버튼 드래그: 회전 · 휠 스크롤: 확대 · 오른쪽 버튼 드래그: 이동</div>
         <div id="scene3dStatus" class="scene3d-status">3D 로봇팔 장면을 불러오는 중…</div>
       </div>
       <div class="scene-wrap" id="scene2dPanel" hidden>
@@ -93,6 +93,23 @@
           <text id="sceneFootnote" x="26" y="445" font-size="12" fill="#546e7d">개념도 · 실제 EEZYbotARM 링크 길이·각도·좌표를 정확히 재현한 물리 시뮬레이터는 아닙니다.</text>
         </svg>
       </div>
+      <details class="camera-mount-settings" id="cameraMountPanel">
+        <summary>촬영용 카메라 설치 위치 설정 <span>실물 거치대 참고 · 3D 미리보기</span></summary>
+        <p class="hint">카메라는 로봇팔에 달지 않고 작업대 위의 독립 거치대에 고정하세요. 로봇팔이 움직여도 화면 속 A·B·C칸과 보관함이 보이는 위치가 좋습니다.</p>
+        <div class="camera-mount-grid">
+          <label>작업대에서 카메라 높이 <output id="cameraHeightOut">55 cm</output><input id="cameraHeight" type="range" min="36" max="80" step="1" value="55"/></label>
+          <label>정면 방향 X 오프셋 <output id="cameraOffsetXOut">+5.5 cm</output><input id="cameraOffsetX" type="range" min="-15" max="15" step="1" value="6"/></label>
+          <label>좌우 방향 Z 오프셋 <output id="cameraOffsetZOut">-4.5 cm</output><input id="cameraOffsetZ" type="range" min="-15" max="15" step="1" value="-5"/></label>
+          <label>카메라 화각(참고) <output id="cameraFovOut">65°</output><input id="cameraFov" type="range" min="45" max="95" step="5" value="65"/></label>
+        </div>
+        <label class="camera-mount-check"><input id="cameraFootprint" type="checkbox" checked/> 작업대의 예상 촬영 범위 표시</label>
+        <div class="manual-row">
+          <button id="viewFromMountedCamera" class="btn blue" type="button">설치한 카메라 시점에서 보기</button>
+          <button id="resetCameraMount" class="btn subtle" type="button">권장 위치로 되돌리기</button>
+        </div>
+        <p id="cameraMountInfo" class="hint" aria-live="polite">권장 시작값: 높이 약 55cm. 실제 화각·해상도·가림 현상은 카메라 영상으로 확인해야 합니다.</p>
+        <p class="hint">위 3D 설정은 카메라를 물리적으로 움직이지 않습니다. 실물에 설치한 뒤에는 웹캠 영상 확인과 A4 기준 평면 보정을 다시 해야 합니다. 깊이(Z) 측정 기능은 아닙니다.</p>
+      </details>
       <div class="lab-footer">
         <div><strong>작업대 A·B·C · 3D 시뮬레이터</strong><span>3D 모델은 EEZYbotARM Mk2 참고 치수로 구성한 개념 형상이며, 실물 관절 영점·충돌을 검증한 모델은 아닙니다. <span id="binSummary">보관함 비어 있음</span></span></div>
         <button id="resetSim" class="btn subtle" type="button">작업대 초기화</button>
@@ -101,15 +118,15 @@
 
     <section class="panel sensors">
       <div class="panel-title"><div><span class="kicker">VISION / VERIFICATION</span><h2>카메라 · 표식 확인</h2></div><span id="visionMode" class="microtag">수동 확인</span></div>
-      <p class="hint">기본 A=원, B=삼각형, C=십자입니다. 사진 분류 모델을 연결하기 전에는 사람이 직접 관찰한 값이며 AI 결과가 아닙니다.</p>
+      <p class="hint">기본 A=원, B=삼각형, C=십자이며, 별 모양을 사용하는 경우 칸 선택에서 별을 지정할 수 있습니다. 사진 분류 모델을 연결하기 전에는 사람이 직접 관찰한 값이며 AI 결과가 아닙니다.</p>
       <div class="slot-editor">
-        <label>A칸<select id="markA"><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="cross">＋ 십자</option><option value="empty">비어 있음</option></select></label>
-        <label>B칸<select id="markB"><option value="triangle">△ 삼각형</option><option value="circle">◯ 원</option><option value="cross">＋ 십자</option><option value="empty">비어 있음</option></select></label>
-        <label>C칸<select id="markC"><option value="cross">＋ 십자</option><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="empty">비어 있음</option></select></label>
+        <label>A칸<select id="markA"><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="cross">＋ 십자</option><option value="star">★ 별</option><option value="empty">비어 있음</option></select></label>
+        <label>B칸<select id="markB"><option value="triangle">△ 삼각형</option><option value="circle">◯ 원</option><option value="cross">＋ 십자</option><option value="star">★ 별</option><option value="empty">비어 있음</option></select></label>
+        <label>C칸<select id="markC"><option value="cross">＋ 십자</option><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="star">★ 별</option><option value="empty">비어 있음</option></select></label>
       </div>
       <details class="subpanel">
         <summary>웹캠 및 학습된 이미지 모델 연결 <span>선택 사항</span></summary>
-        <p class="hint">카메라를 고정하고 A·B·C를 화면의 왼쪽·가운데·오른쪽에 맞춘 다음, 학습된 Teachable Machine 이미지 모델 URL을 입력하세요. 세 영역을 각각 분류합니다. 분류 결과는 반드시 실제 작업대와 비교하세요.</p>
+        <p class="hint">카메라를 고정하고 거치대 카메라의 촬영 방향을 고정하고 A·B·C를 화면의 왼쪽·가운데·오른쪽에 맞춘 다음, 학습된 Teachable Machine 이미지 모델 URL을 입력하세요. 세 영역을 각각 분류합니다. 분류 결과는 반드시 실제 작업대와 비교하세요.</p>
         <div class="camera-grid">
           <div class="video-box"><video id="camera" autoplay muted playsinline aria-label="카메라 영상"></video><div class="camera-guide"><span>A</span><span>B</span><span>C</span></div></div>
           <div class="camera-buttons"><button class="btn subtle" id="startCamera">카메라 켜기</button><button class="btn subtle" id="stopCamera">카메라 끄기</button><label for="modelUrl">Teachable Machine 모델 URL</label><input id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/..." /><button class="btn blue" id="loadModel">모델 불러오기</button><button class="btn primary" id="predict">A·B·C 사진 분류</button></div>
