@@ -1,7 +1,7 @@
 import {
   AXES, SLOTS, SHAPES, POSE_NAMES, DEFAULT_ANGLES,
   parseLocalIntent, normalizeIntent, normalizeShape, shapeLabel, findSource,
-  buildPickSequence, validAngles, poseLine, messageLine, serialWhitelist
+  buildPickSequence, validAngles, poseLine, axisLine, messageLine, serialWhitelist
 } from "./protocol.js";
 import { mountCameraWorkspace } from "./guided-setup.js";
 
@@ -373,6 +373,36 @@ async function manualSend(){
   state.cancelled=false;
   await physicalPose([...state.angles],"수동 관절 이동");
 }
+async function testSingleAxis(){
+  const i=Number($("axisSelect").value);
+  if(!Number.isInteger(i)||i<0||i>3)throw new Error("시험할 축을 선택하세요.");
+  const angle=state.angles[i];
+  ensurePhysicalLimits(state.angles);
+  if(state.running)throw new Error("자동 동작 중에는 축을 시험할 수 없습니다.");
+  if(state.mode!=="real"){
+    status("시뮬레이션 축 "+(i+1)+" 각도 "+angle+"°");
+    log("SIM "+labels[i]+": "+angle+"°");
+    return;
+  }
+  showModeWarning();
+  if(!window.confirm(
+    labels[i]+" 축을 "+angle+"°로 움직입니다.\n"+
+    "장치를 지지하고, 작동 범위의 사람과 물체를 치웠습니까?\n"+
+    "처음 활성화할 때 서보가 갑자기 현재 위치에서 이동할 수 있습니다."
+  ))return;
+  state.running=true;
+  try{
+    const done=waitForLine(line=>/^DONE AXIS$/.test(line),11000);
+    await writeLine(axisLine(i,angle));
+    await done;
+    log("축별 실물 점검 완료: "+labels[i]+" "+angle+"° (물체 집기 여부와 무관)");
+    status(labels[i]+" 축 점검 완료");
+  }catch(err){
+    if(state.connected)await writeLine("STOP\n").catch(()=>{});
+    throw err;
+  }finally{state.running=false;}
+}
+
 function restoreCalibration(){
   try{
     const raw=JSON.parse(localStorage.getItem(CAL_KEY)||"{}");
@@ -493,6 +523,7 @@ function boot(){
     status("HOME 각도 표시 · 실제 모터는 아직 움직이지 않음");
   });
   bind("sendPose","click",manualSend);
+  bind("testAxis","click",testSingleAxis);
   bind("connect","click",connectSerial);
   bind("quickStart","click",async()=>{
     $("runMode").value="real";setRunMode();
