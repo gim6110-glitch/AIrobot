@@ -1,5 +1,8 @@
 # 다비봇 AIrobot · 로봇팔 AI 융합 실습실
 
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/gim6110-glitch/AIrobot)
+
+
 본 프로젝트는 EEZYbotARM Mk2를 바탕으로 고등학생이 로봇팔을 만들고 제어하며, AI가 인식한 결과를 검증하고 집게를 개선하는 실습을 지원합니다.
 
 **검증 상태:** 소프트웨어 시제품. 실제 Arduino·서보·EEZYbotARM Mk2 실물에 대한 동작 검증은 아직 실시하지 않았습니다. 시뮬레이터는 개념적 2D 그림이며 실제 로봇의 역기구학, 충돌, 모터 토크를 계산하지 않습니다.
