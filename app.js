@@ -145,7 +145,7 @@ async function parseChat(text){
   if($("aiMode").value==="rule"){
     return { source:"rule",intent:parseLocalIntent(text)};
   }
-  const response=await fetch("/.netlify/functions/intent",{
+  const response=await fetch("/api/intent",{
     method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
   const payload=await response.json();
   if(!response.ok)throw new Error(payload.error||"LLM 연결 실패");
