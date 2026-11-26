@@ -206,6 +206,72 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   const binItemsGroup=new THREE.Group();binItemsGroup.position.set(binPosition.x,12,binPosition.z);
   scene.add(binItemsGroup);
 
+  // Independent overhead workbench camera, not mounted on moving robot links.
+  // All dimensions and the field of view are adjustable *illustrations*.
+  const cameraRig=new THREE.Group();scene.add(cameraRig);
+  const cameraPost=link(cameraRig,5,COLORS.metal);
+  const cameraBoom=link(cameraRig,4.8,COLORS.metal);
+  const standBase=disk(cameraRig,27,8,COLORS.ink,
+    CAMERA_STAND.x,4,CAMERA_STAND.z);
+  const cameraHousing=block(cameraRig,43,23,31,COLORS.ink,0,0,0);
+  const cameraLens=disk(cameraRig,12,8,0x273747,0,0,0);
+  const cameraGlass=disk(cameraRig,7,1,COLORS.teal,0,0,0);
+  const cameraLabel=textSprite(cameraRig,"작업대 카메라","#164a63",0.95);
+  const footprintLines=new THREE.Group();scene.add(footprintLines);
+  let mountedConfig={...CAMERA_DEFAULT},isMountedCameraView=false;
+
+  function disposeLines(group){
+    for(const child of [...group.children]){
+      group.remove(child);
+      child.geometry?.dispose();
+      child.material?.dispose();
+    }
+  }
+  function segmentLine(a,b,color,opacity=0.9){
+    const geo=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(a.x,a.y,a.z),
+      new THREE.Vector3(b.x,b.y,b.z)
+    ]);
+    const line=new THREE.Line(geo,
+      new THREE.LineBasicMaterial({color,transparent:true,opacity,depthTest:false}));
+    footprintLines.add(line);
+  }
+  function updateCameraMount(next=mountedConfig){
+    mountedConfig=normalizeCameraConfig(next);
+    const pos=cameraPosition(mountedConfig);
+    placeLink(cameraPost,
+      {x:CAMERA_STAND.x,y:10,z:CAMERA_STAND.z},
+      {x:CAMERA_STAND.x,y:mountedConfig.heightMm+26,z:CAMERA_STAND.z});
+    placeLink(cameraBoom,
+      {x:CAMERA_STAND.x,y:mountedConfig.heightMm+26,z:CAMERA_STAND.z},
+      {x:pos.x,y:mountedConfig.heightMm+26,z:pos.z});
+    cameraHousing.position.set(pos.x,pos.y,pos.z);
+    cameraLens.position.set(pos.x,pos.y-15,pos.z);
+    cameraGlass.position.set(pos.x,pos.y-20,pos.z);
+    cameraLabel.position.set(pos.x,pos.y+36,pos.z);
+    disposeLines(footprintLines);
+    if(mountedConfig.showFootprint){
+      const corners=footprintCorners(mountedConfig,16/9);
+      for(let i=0;i<4;i++){
+        segmentLine(pos,corners[i],COLORS.teal,0.42);
+        segmentLine(corners[i],corners[(i+1)%4],COLORS.teal,0.88);
+      }
+    }
+    if(isMountedCameraView)viewFromMountedCamera();
+    return {position:pos,footprint:mountedConfig.showFootprint?
+      footprintCorners(mountedConfig,16/9):null};
+  }
+  function viewFromMountedCamera(){
+    isMountedCameraView=true;
+    const pos=cameraPosition(mountedConfig);
+    controls.enabled=false;
+    cameraRig.visible=false;
+    footprintLines.visible=false;
+    camera.position.set(pos.x,pos.y-24,pos.z);
+    camera.fov=mountedConfig.fovDeg;
+    camera.updateProjectionMatrix();
+    camera.lookAt(CAMERA_TARGET.x,0,CAMERA_TARGET.z);
+  }
   // EEZYbotARM Mk2-inspired articulated skeleton with reference link lengths.
   disk(scene,61,12,COLORS.ink,0,0,0);
   disk(scene,44,15,COLORS.orangeDark,0,12,0);
@@ -304,6 +370,9 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     renderer.setSize(width,height,false);
   }
   function resetCamera(){
+    isMountedCameraView=false;cameraRig.visible=true;
+    footprintLines.visible=true;controls.enabled=true;
+    camera.fov=42;camera.updateProjectionMatrix();
     camera.position.copy(defaultCamera);controls.target.copy(focus);controls.update();
   }
   let disposed=false,raf=0;
@@ -315,10 +384,12 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     }
   }
   const observer=new ResizeObserver(resize);
-  observer.observe(host);resize();update({angles:currentAngles,observations:{A:"circle",B:"triangle",C:"cross"},transferred:[]});
+  observer.observe(host);
+  updateCameraMount(mountedConfig);
+  resize();update({angles:currentAngles,observations:{A:"circle",B:"triangle",C:"cross"},transferred:[]});
   frame();
   return {
-    update,resetCamera,resize,
+    update,resetCamera,resize,updateCameraMount,viewFromMountedCamera,
     dispose(){
       disposed=true;cancelAnimationFrame(raf);observer.disconnect();controls.dispose();
       renderer.domElement.removeEventListener("mousedown",cancelMiddleAutoscroll);
@@ -328,6 +399,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
         const mats=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
         for(const m of mats){if(m.map)m.map.dispose();m.dispose();}
       });
+      disposeLines(footprintLines);
       renderer.dispose();renderer.domElement.remove();
     }
   };
