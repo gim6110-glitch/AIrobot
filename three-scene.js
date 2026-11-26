@@ -87,7 +87,8 @@ function armSolution(target,model=MK2_REFERENCE){
   const ratio=range===0?1:clipped/range;
   const r=horiz*ratio,h=vertical*ratio;
   const cosElbow=Math.max(-1,Math.min(1,(r*r+h*h-L2*L2-distal*distal)/(2*L2*distal)));
-  const elbow=Math.acos(cosElbow);
+  // Elbow-up branch: the upper link stays above the tabletop when picking.
+  const elbow=-Math.acos(cosElbow);
   const shoulder=Math.atan2(h,r)-Math.atan2(distal*Math.sin(elbow),L2+distal*Math.cos(elbow));
   const yaw=Math.atan2(target.z,target.x);
   return {yaw,shoulder,elbow,unreachable:Math.abs(range-clipped)>1};
@@ -101,8 +102,8 @@ export function visualJoints(angles,target){
     // Servo 90° is NOT a calibrated mechanical zero; these offsets are visual
     // illustrative mappings for the four manual slider angles only.
     yaw=radians((angles[0]-90)*0.48);
-    shoulder=radians(-55+(angles[1]-90)*0.9);
-    elbow=radians(79+(angles[2]-90)*0.75);
+    shoulder=radians(48+(angles[1]-90)*0.65);
+    elbow=radians(-84+(angles[2]-90)*0.70);
   }
   const a={x:0,y:L.L1,z:0};
   const direction=(length,angle)=>({
