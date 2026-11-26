@@ -3,6 +3,7 @@ import {
   parseLocalIntent, normalizeIntent, normalizeShape, shapeLabel, findSource,
   buildPickSequence, validAngles, poseLine, messageLine, serialWhitelist
 } from "./protocol.js";
+import { mountCameraWorkspace } from "./guided-setup.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -16,7 +17,7 @@ const SIM_POSES = {
 };
 const state = {
   mode:"sim", angles:[...DEFAULT_ANGLES], observations:{ A:"circle", B:"triangle", C:"cross" },
-  sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{},
+  sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{}, boardModel:null,
   transferred:[], running:false, cancelled:false, stopped:false,
   pending:null, connected:false, armed:false, port:null, writer:null, reader:null,
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
@@ -249,7 +250,9 @@ function ensurePhysicalLimits(angles){
 async function connectSerial(){
   if(!("serial" in navigator))throw new Error("실물 USB 연결은 데스크톱 Chrome/Edge의 HTTPS Web Serial에서만 지원됩니다.");
   if(state.connected)return;
-  const port=await navigator.serial.requestPort();
+  // Reuse the user's previously granted USB permission when there is exactly one port.
+  const granted=await navigator.serial.getPorts();
+  const port=granted.length===1?granted[0]:await navigator.serial.requestPort();
   await port.open({baudRate:115200,bufferSize:255});
   state.port=port;state.connected=true;state.armed=false;state.stopped=false;state.lastSentAngles=null;
   state.writer=port.writable.getWriter();
@@ -262,7 +265,17 @@ async function connectSerial(){
   $("connectionBadge").textContent="USB 연결됨 · 잠금";
   log("Arduino USB 연결됨. 현재 실제 모터는 제어 잠금 상태입니다.","warning");
   await sleep(1800); // UNO resets after opening a serial port
-  await writeLine("HELLO\n");
+  // Confirm the actual AIROBOT firmware handshake; do not confuse a serial port
+  // with a verified robot controller.
+  const hello=waitForLine(line=>/^READY AIROBOT\/1$/.test(line),4500);
+  try {
+    await writeLine("HELLO\n");
+    await hello;
+    log("AIROBOT/1 펌웨어 확인됨 · 실물 제어는 아직 잠금 상태입니다.");
+  } catch(err) {
+    await disconnectSerial();
+    throw new Error("Arduino가 AIROBOT/1 응답을 보내지 않았습니다. 스케치 업로드와 포트를 확인하세요.");
+  }
 }
 async function readLoop(){
   try{
@@ -463,6 +476,7 @@ function bind(id,event,fn){
 }
 function boot(){
   buildSliders();restoreCalibration();renderRobot();
+  mountCameraWorkspace({state,onLog:message=>log(message)});
   log("시뮬레이터 시작. Arduino 연결 전 실제 모터는 움직이지 않습니다.");
   bind("runMode","change",setRunMode);
   bind("resetSim","click",resetObservations);
@@ -480,6 +494,15 @@ function boot(){
   });
   bind("sendPose","click",manualSend);
   bind("connect","click",connectSerial);
+  bind("quickStart","click",async()=>{
+    $("runMode").value="real";setRunMode();
+    await connectSerial();
+    const complete=Object.keys(state.calibration).length===POSE_NAMES.length;
+    $("deviceSetup").textContent=complete
+      ? "Arduino 통신이 확인되었습니다. 저장된 9개 위치가 현재 장치와 같은지 먼저 확인하고, 사람의 승인 후 실행할 수 있습니다."
+      : "Arduino 통신 성공! 이 장치는 실제 안전 위치가 미보정 상태입니다. 아래에서 모터 방향과 각 위치를 확인하고 저장해야 자동 집기 명령을 실행할 수 있습니다.";
+    log(complete?"저장된 위치 보정값 발견. 실제 장비의 구조 변경 여부 확인 필요.":"첫 실물 연결: 위치 보정 9개가 필요합니다.","warning");
+  });
   bind("disconnect","click",disconnectSerial);
   bind("arm","click",armPhysical);
   bind("disarm","click",async()=>{
