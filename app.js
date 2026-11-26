@@ -6,6 +6,7 @@ import {
 import { mountCameraWorkspace } from "./guided-setup.js";
 import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS, WORLD_WAYPOINTS, worldTargetForStep, lerpWorld } from "./simulator-motion.js";
 import { create3DScene } from "./three-scene.js";
+import { CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,BIN_ITEM_CAPACITY } from "./camera-layout.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -20,7 +21,8 @@ const SIM_POSES = {
 const state = {
   mode:"sim", angles:[...DEFAULT_ANGLES], simTip:{...SIM_WAYPOINTS.HOME}, simTarget3d:{...WORLD_WAYPOINTS.HOME}, carriedShape:null, view3d:null, view:"3d", observations:{ A:"circle", B:"triangle", C:"cross" },
   sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{}, boardModel:null,
-  transferred:[], hiddenBinIndex:null, workspaces:{real:{observations:{A:'circle',B:'triangle',C:'cross'},transferred:[]}},
+  transferred:[], hiddenBinIndex:null, hiddenSlot:null, previewAtSlot:null, previewInBin:null, simBinIndex:0,
+  cameraConfig:{...CAMERA_DEFAULT}, workspaces:{real:{observations:{A:'circle',B:'triangle',C:'cross'},transferred:[]}},
   running:false, cancelled:false, stopped:false,
   pending:null, connected:false, armed:false, port:null, writer:null, reader:null,
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
@@ -59,6 +61,9 @@ function sync3D(includeObjects=false) {
     details.transferred=state.transferred;
     details.hiddenIndex=state.hiddenBinIndex;
     details.carrying=state.carriedShape;
+    details.hiddenSource=state.hiddenSlot;
+    details.previewAtSlot=state.previewAtSlot;
+    details.previewInBin=state.previewInBin;
   }
   state.view3d.update(details);
 }
@@ -109,6 +114,7 @@ function setRunMode() {
     state.observations={...saved.observations};
     state.transferred=saved.transferred.map(x=>({...x}));
     state.hiddenBinIndex=null;
+    state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
     state.mode=next;
     clearSimCarry();
     renderWorkspace();
@@ -134,6 +140,7 @@ function setRunMode() {
   state.angles=[...DEFAULT_ANGLES];
   state.transferred=[];
   state.hiddenBinIndex=null;
+  state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
   refreshSliders();
   clearSimCarry();
   renderWorkspace();
@@ -147,9 +154,11 @@ function iconForShape(shape){
   if(shape==="circle") mark=svgEl("circle",{cx:0,cy:0,r:12,fill:"none",stroke:"#173c53","stroke-width":5});
   else if(shape==="triangle")mark=svgEl("path",{d:"M0 -16 L17 13 H-17Z",fill:"#14384f"});
   else if(shape==="cross")mark=svgEl("path",{d:"M-5 -16H5V-5H17V5H5V16H-5V5H-17V-5H-5Z",fill:"#14384f"});
+  else if(shape==="star")mark=svgEl("path",{d:"M0 -19 L6 -6 L20 -6 L9 3 L13 18 L0 9 L-13 18 L-9 3 L-20 -6 L-6 -6Z",fill:"#14384f"});
   return shape==="empty"?[]:[outer,mark];
 }
 function syncSlots() {
+  if(state.running){renderWorkspace();log("작동 중에는 작업대 표식을 변경할 수 없습니다.","warning");return;}
   for(const slot of SLOTS) {
     const val=$("mark"+slot).value;
     state.observations[slot]=val==="empty"?null:val;
@@ -191,7 +200,7 @@ function transferObject(slot) {
   if(!shape)throw new Error(slot+"칸에 이동할 물체가 없습니다.");
   state.transferred.push({shape,origin:slot});
   state.observations[slot]=null;
-  state.hiddenBinIndex=null;
+  state.hiddenBinIndex=null;state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
   renderWorkspace();
   $("visionConfirmed").checked=false;
 }
@@ -313,7 +322,7 @@ async function simulatedMove(angles,label,token){
   const from=state.simTip||manualVisualTip(startAngles);
   const target=targetForStep(label);
   const from3D=state.simTarget3d||WORLD_WAYPOINTS.HOME;
-  const target3D=worldTargetForStep(label);
+  const target3D=worldTargetForStep(label,{binIndex:state.simBinIndex});
   const duration=660,begin=performance.now();
   while(true) {
     if(state.cancelled || token!==state.runToken)throw new Error("동작이 중단되었습니다.");
@@ -377,6 +386,9 @@ async function runPick(){
     if(!window.confirm("실물 로봇 실행 확인\n\n"+action+
       "\n물체 집기 위치, 빈 도착 칸, 전원 차단 장치 및 주변 안전을 확인했습니까?\n이 작업은 실제 서보모터를 움직입니다."))return;
   }else {
+    if(!reverse && state.transferred.length>=BIN_ITEM_CAPACITY)
+      throw new Error("시뮬레이터 보관함은 "+BIN_ITEM_CAPACITY+"개까지 배치할 수 있습니다. 물체를 먼저 반환해 주세요.");
+    state.simBinIndex=reverse?selected.index:state.transferred.length;
     sequence=reverse?buildReturnSequence(slot,SIM_POSES,open,close)
       :buildPickSequence(slot,SIM_POSES,open,close);
   }
@@ -393,11 +405,13 @@ async function runPick(){
       if(state.cancelled)throw new Error("동작 중지됨");
       if(state.mode==="sim" && i===2){
         if(reverse){state.hiddenBinIndex=selected.index;renderBinInventory();}
-        else $("object"+slot).style.opacity="0";
+        else{state.hiddenSlot=slot;$("object"+slot).style.opacity="0";}
         attachSimCarry(p.shape);
         log("SIM "+(reverse?"보관함":"작업대")+" 물체 집기 표현");
       }
       if(state.mode==="sim" && i===6){
+        if(reverse)state.previewAtSlot={slot,shape:p.shape};
+        else state.previewInBin={index:state.simBinIndex,shape:p.shape};
         clearSimCarry();
         if(reverse){
           const obj=$("object"+slot);
@@ -408,6 +422,7 @@ async function runPick(){
       }
     }
     if(state.mode==="sim"){
+      state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
       if(reverse){
         returnObject(selected.index,slot);
         log("SIM 보관함의 "+shapeLabel(p.shape)+"을 "+slot+"칸으로 반환했습니다.");
@@ -436,14 +451,14 @@ async function runPick(){
     setProposal(null);
   }catch(err){
     if(state.mode==="sim"){
-      state.hiddenBinIndex=null;
+      state.hiddenBinIndex=null;state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
       renderWorkspace();
     }
     notifyError(err);
   }finally{
     clearSimCarry();
-    state.hiddenBinIndex=null;
-    renderBinInventory();
+    state.hiddenBinIndex=null;state.hiddenSlot=null;state.previewAtSlot=null;state.previewInBin=null;
+    renderWorkspace();
     state.running=false;
     $("execute").disabled=false;
   }
