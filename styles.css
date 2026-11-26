@@ -107,3 +107,8 @@ footer{text-align:center;font-size:10px;color:#7893a0;padding:19px 10px 30px;let
 .calibration-step{background:#e8f5f3;border-left:4px solid #0b9186;padding:12px 15px;border-radius:7px;color:#095d61;font-size:13px;font-weight:800;line-height:1.7}
 #boardReach{white-space:pre-line}
 #quickStart{margin-bottom:9px;font-size:14px}
+
+.axis-check{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px;align-items:center;margin:18px 0 9px}
+.axis-check label{font-size:12px;font-weight:800;color:#38596d}
+.axis-check select{width:100%}
+@media(max-width:650px){.axis-check{grid-template-columns:1fr 1fr}.axis-check label{grid-column:span 2}.axis-check button{grid-column:span 2}}
