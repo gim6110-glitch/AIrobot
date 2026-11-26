@@ -27,7 +27,7 @@ export function normalizeShape(text) {
   if (/(삼각형|세모|triangle)/.test(t)) return "triangle";
   if (/(원형|동그라미|circle|원(?:을|이|은|의|으로|에서|[\s,.!?]|$))/.test(t)) return "circle";
   if (/(십자|더하기|cross)/.test(t)) return "cross";
-  if (/(별\s*모양|오각별|별표|star)/.test(t)) return "star";
+  if (/(별(?:\s*모양|을|이|은|의|에서|[\s,.!?]|$)|오각별|별표|star)/.test(t)) return "star";
   return null;
 }
 
