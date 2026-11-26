@@ -107,5 +107,6 @@ export function messageLine(line) {
 
 export function serialWhitelist(line) {
   return /^(HELLO|PING|ARM|DISARM|STOP|STATUS)\n$/.test(line) ||
-    /^POSE,(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180)\n$/.test(line);
+    /^POSE,(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180),(?:0|[1-9]\d?|1[0-7]\d|180)\n$/.test(line) ||
+    /^AXIS,[0-3],(?:0|[1-9]\d?|1[0-7]\d|180)\n$/.test(line);
 }
