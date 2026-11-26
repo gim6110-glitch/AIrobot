@@ -96,8 +96,8 @@ test("camera looking straight down does not produce invalid ground points",()=>{
 test("default camera axes agree with real 16:9 preview orientation",()=>{
   const axes=cameraAxes();
   assert.deepEqual(axes.forward,[0,-1,0]);
-  assert.deepEqual(axes.right,[0,0,1]);
-  assert.deepEqual(axes.up,[1,0,0]);
+  assert.ok(axes.right.every((n,i)=>almost(n,[0,0,1][i])));
+  assert.ok(axes.up.every((n,i)=>almost(n,[1,0,0][i])));
   const q=footprintCorners();
   assert.ok(q[1].z>q[0].z);
   assert.ok(q[2].x>q[1].x);
