@@ -1,7 +1,7 @@
 import {
   AXES, SLOTS, SHAPES, POSE_NAMES, DEFAULT_ANGLES,
   parseLocalIntent, normalizeIntent, normalizeShape, shapeLabel, findSource,
-  buildPickSequence, validAngles, poseLine, axisLine, messageLine, serialWhitelist
+  buildPickSequence, buildReturnSequence, resolveBinReturn, validAngles, poseLine, axisLine, messageLine, serialWhitelist
 } from "./protocol.js";
 import { mountCameraWorkspace } from "./guided-setup.js";
 import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS } from "./simulator-motion.js";
@@ -19,7 +19,8 @@ const SIM_POSES = {
 const state = {
   mode:"sim", angles:[...DEFAULT_ANGLES], simTip:{...SIM_WAYPOINTS.HOME}, observations:{ A:"circle", B:"triangle", C:"cross" },
   sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{}, boardModel:null,
-  transferred:[], running:false, cancelled:false, stopped:false,
+  transferred:[], hiddenBinIndex:null, workspaces:{real:{observations:{A:'circle',B:'triangle',C:'cross'},transferred:[]}},
+  running:false, cancelled:false, stopped:false,
   pending:null, connected:false, armed:false, port:null, writer:null, reader:null,
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
   stream:null, model:null, modelUrl:"", calibration:{}, lastSentAngles:null, cameraLabels:[]
@@ -46,41 +47,49 @@ function notifyError(err){ const message=err instanceof Error?err.message:String
 function setRunMode() {
   if(state.running){
     $("runMode").value=state.mode;
-    log("동작 중에는 시뮬레이션/실물 모드를 변경할 수 없습니다.","warning");
+    log("동작 중에는 실행 모드를 변경할 수 없습니다.","warning");
     return;
   }
-  state.mode=$("runMode").value;
+  const next=$("runMode").value;
+  if(next!==state.mode){
+    state.workspaces[state.mode]={
+      observations:{...state.observations},
+      transferred:state.transferred.map(x=>({...x}))
+    };
+    const saved=state.workspaces[next]||{observations:{A:"circle",B:"triangle",C:"cross"},transferred:[]};
+    state.observations={...saved.observations};
+    state.transferred=saved.transferred.map(x=>({...x}));
+    state.hiddenBinIndex=null;
+    state.mode=next;
+    clearSimCarry();
+    renderWorkspace();
+    $("visionConfirmed").checked=false;
+    setProposal(null);
+    log("작업 기록을 "+(next==="sim"?"시뮬레이터":"실물")+" 작업대로 전환했습니다. 서로의 기록은 섞이지 않습니다.");
+  }
   state.simTip=state.mode==="sim"?{...SIM_WAYPOINTS.HOME}:null;
   renderRobot();
   $("modeBadge").innerHTML='<span class="dot"></span>'+(state.mode==="real"?"실물 Arduino 모드":"시뮬레이션");
-  if(state.mode==="real") log("실물 모드: USB 연결·보정·승인이 필요합니다.","warning");
-  $("confirmLabel").textContent=state.mode==="real"?"실물 작업대 대상·위치·로봇 주변 안전을 직접 확인했습니다.":"시뮬레이터에서 옮길 대상과 목적지를 확인했습니다.";
+  if(state.mode==="real")log("실물 모드: 보관함에서 반환하기 전 실제 물체와 비어 있는 도착 칸을 확인해야 합니다.","warning");
+  $("confirmLabel").textContent=state.mode==="real"?"보관함·도착 칸·로봇 주변 안전을 현장에서 직접 확인했습니다.":"시뮬레이터의 대상과 목적지를 확인했습니다.";
   status(state.mode==="real"?"실물 모드 준비":"시뮬레이션 준비");
-}
-function resetObservations() {
-  if(state.running) {
-    log("진행 중인 동작을 중지한 후 작업대를 초기화해 주세요.","warning");
-    return;
+}function resetObservations() {
+  if(state.running){
+    log("진행 중인 동작을 중지한 후 초기화해 주세요.","warning");return;
   }
+  if(state.mode==="real" && !window.confirm("실물 작업대의 기록만 초기화합니다.\n실제 물체나 모터는 움직이지 않습니다. 물체 위치 기록을 삭제할까요?"))return;
   state.observations={A:"circle",B:"triangle",C:"cross"};
   state.simTip={...SIM_WAYPOINTS.HOME};
   state.angles=[...DEFAULT_ANGLES];
+  state.transferred=[];
+  state.hiddenBinIndex=null;
   refreshSliders();
   clearSimCarry();
-  state.transferred=[];
-  for(const slot of SLOTS){
-    $("mark"+slot).value=state.observations[slot];
-    state.sourceBySlot[slot]="manual";
-    const el=$("object"+slot);
-    el.style.opacity="1";
-    el.replaceChildren(...iconForShape(state.observations[slot]));
-  }
-  $("binItems").replaceChildren();
+  renderWorkspace();
   $("visionConfirmed").checked=false;
   setProposal(null);
-  status("작업대 초기화");
-}
-function svgEl(name,attrs={}){const el=document.createElementNS("http://www.w3.org/2000/svg",name);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));return el;}
+  status("작업대 기록 초기화 (실물 이동 아님)");
+}function svgEl(name,attrs={}){const el=document.createElementNS("http://www.w3.org/2000/svg",name);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));return el;}
 function iconForShape(shape){
   const outer=svgEl("circle",{cx:0,cy:0,r:25,fill:"#e1e7ea",stroke:"#8199a6","stroke-width":3});
   let mark;
@@ -102,19 +111,45 @@ function syncSlots() {
   $("visionConfirmed").checked=false;
   setProposal(null);
 }
-function transferObject(slot) {
-  const obj=$("object"+slot);
-  obj.style.opacity="0";
-  const item=state.observations[slot];
-  state.transferred.push(item);
-  state.observations[slot]=null;
-  $("mark"+slot).value="empty";
+function renderBinInventory() {
   const g=$("binItems");g.replaceChildren();
-  state.transferred.slice(-4).forEach((s,i)=>{
-    let el=svgEl("g",{transform:"translate("+(647+25*(i%4))+" "+(193+((i/4)|0)*21)+") scale(.56)"});
-    for(const c of iconForShape(s||"empty"))el.appendChild(c);
-    g.append(el);
+  state.transferred.forEach((item,i)=>{
+    if(i===state.hiddenBinIndex)return;
+    const marker=svgEl("g",{transform:"translate("+(641+27*(i%4))+" "+(190+((i/4)|0)*24)+") scale(.48)"});
+    for(const c of iconForShape(item.shape))marker.appendChild(c);
+    g.appendChild(marker);
   });
+  if($("binSummary"))$("binSummary").textContent=state.transferred.length
+    ? "보관함 "+state.transferred.length+"개 · "+state.transferred.map(item=>shapeLabel(item.shape)+"("+item.origin+"칸 출발)").join(", ")
+    : "보관함 비어 있음";
+}
+function renderWorkspace() {
+  for(const slot of SLOTS){
+    const shape=state.observations[slot];
+    $("mark"+slot).value=shape||"empty";
+    const node=$("object"+slot);
+    node.replaceChildren(...iconForShape(shape||"empty"));
+    node.style.opacity=shape?"1":"0";
+  }
+  renderBinInventory();
+}
+function transferObject(slot) {
+  const shape=state.observations[slot];
+  if(!shape)throw new Error(slot+"칸에 이동할 물체가 없습니다.");
+  state.transferred.push({shape,origin:slot});
+  state.observations[slot]=null;
+  state.hiddenBinIndex=null;
+  renderWorkspace();
+  $("visionConfirmed").checked=false;
+}
+function returnObject(index,destination) {
+  const item=state.transferred[index];
+  if(!item)throw new Error("보관함 물체 기록을 찾지 못했습니다.");
+  if(state.observations[destination])throw new Error(destination+"칸에 이미 물체가 있습니다.");
+  state.transferred.splice(index,1);
+  state.observations[destination]=item.shape;
+  state.hiddenBinIndex=null;
+  renderWorkspace();
   $("visionConfirmed").checked=false;
 }
 function clearSimCarry(){
@@ -185,16 +220,31 @@ async function onChat(event){
   $("chatInput").value="";say(text,"user");
   setProposal(null);
   const button=document.querySelector("#chatForm button");button.disabled=true;
-  try{
+  try {
     const {source,intent}=await parseChat(text);
+    if(intent.kind==="return_place"){
+      const selection=resolveBinReturn(intent,state.transferred,state.observations);
+      say((source==="llm"?"LLM 결과":"규칙 기반 해석")+
+        "\n출발: 보관함 · 대상: "+shapeLabel(selection.shape)+
+        " · 도착: "+selection.destination+"칸"+(intent.target==="ORIGINAL"?"(원래 자리)":"")+
+        "\n아직 실행하지 않았습니다. 아래에서 대상·목적지를 확인하고 승인해 주세요.");
+      setProposal({kind:"return",...selection,
+        text:"보관함 · "+shapeLabel(selection.shape)+" → "+selection.destination+"칸. "+
+          (state.mode==="real"?"실물 물체가 보관함 집기 지점에 있는지 직접 확인해야 합니다.":"시뮬레이터에서 원래 위치로 반환합니다.")});
+      return;
+    }
     if(intent.kind!=="pick_place"){say(intent.explanation);return;}
     const slot=findSource(intent,state.observations);
     const observed=state.observations[slot];
-    if(!observed)throw new Error(slot+"칸의 물체를 확인할 수 없습니다.");
+    if(!observed)throw new Error(slot+"칸에 물체가 없습니다.");
     say((source==="llm"?"LLM 결과":"규칙 기반 해석")+
-      "\n대상: "+shapeLabel(observed)+" / 출발: "+slot+"칸 / 목적지: 보관함\n아직 실행하지 않았습니다. "+(state.mode==="sim"?"시뮬레이터에서는 아래 실행 승인만 체크하세요.":"실제 표식·작업 환경과 카메라 확인란까지 점검하세요.")+"");
-    setProposal({slot,shape:observed,text:"작업 대상 "+slot+"칸 · "+shapeLabel(observed)+" → 보관함. "+(source==="rule"?"규칙 기반 해석(LLM 아님)":"LLM 해석")+". 사람이 검증 후 승인할 때만 실행합니다."});
-  }catch(err){notifyError(err)}finally{button.disabled=false}
+      "\n대상: "+shapeLabel(observed)+" / 출발: "+slot+"칸 / 목적지: 보관함"+
+      "\n아직 실행하지 않았습니다. 아래에서 확인하고 승인해 주세요.");
+    setProposal({kind:"forward",slot,shape:observed,
+      text:slot+"칸 · "+shapeLabel(observed)+" → 보관함. "+
+        (state.mode==="real"?"실물 작업대를 직접 확인해야 합니다.":"시뮬레이터의 이동을 확인하세요.")});
+  }catch(err){notifyError(err);}
+  finally{button.disabled=false;}
 }
 function showModeWarning(){
   if(state.mode==="real" && !state.connected)throw new Error("실제 모드에서는 USB로 Arduino를 연결해야 합니다.");
@@ -229,61 +279,107 @@ async function physicalPose(angles,label){
 async function runPick(){
   const p=state.pending;
   if(!p)throw new Error("먼저 채팅 명령을 해석하세요.");
-  if(state.running)throw new Error("다른 동작이 실행 중입니다.");
-  if(!$("confirmAction").checked)throw new Error("작업 대상 및 주변 안전을 확인하고 승인란을 체크하세요.");
+  if(state.running)throw new Error("현재 다른 작업이 실행 중입니다.");
+  if(!$("confirmAction").checked)throw new Error("대상과 목적지를 확인한 뒤 실행 승인란을 체크하세요.");
   if(needsPhysicalVerification(state.mode) && !$("visionConfirmed").checked)
-    throw new Error("실물 모드는 A·B·C의 표식을 직접 확인해야 합니다. 카메라·표식 확인 영역의 확인란을 체크하세요.");
-  const slot=findSource({kind:"pick_place",shape:p.shape,source:p.slot,target:"BIN"},state.observations);
-  if(slot!==p.slot)throw new Error("표식 관찰 결과가 변경되었습니다. 다시 해석하세요.");
+    throw new Error("실물 모드에서는 A·B·C와 보관함의 물체 위치를 직접 확인한 후 체크해 주세요.");
+
+  const reverse=p.kind==="return";
+  let slot,selected;
+  if(reverse){
+    selected=resolveBinReturn({kind:"return_place",source:"BIN",shape:p.shape,target:p.destination},state.transferred,state.observations);
+    if(selected.index!==p.index || selected.origin!==p.origin || selected.destination!==p.destination)
+      throw new Error("보관함 기록이 변경되었습니다. 명령을 다시 입력해 주세요.");
+    slot=selected.destination;
+  }else {
+    slot=findSource({kind:"pick_place",shape:p.shape,source:p.slot,target:"BIN"},state.observations);
+    if(slot!==p.slot)throw new Error("물체 위치가 변경되었습니다. 다시 명령해 주세요.");
+  }
   let sequence;
+  const open=state.mode==="real"?Number($("openGrip").value):75;
+  const close=state.mode==="real"?Number($("closeGrip").value):110;
   if(state.mode==="real"){
     showModeWarning();
-    sequence=buildPickSequence(slot,state.calibration,
-      Number($("openGrip").value),Number($("closeGrip").value));
+    // One calibrated PICK_BIN/PLACE_BIN location cannot safely locate
+    // multiple objects piled in a real storage box.
+    if(reverse && state.transferred.length!==1)
+      throw new Error("실물 보관함의 집기 위치는 1개 물체용입니다. 보관함에 물체가 1개 있을 때만 반환할 수 있습니다.");
+    if(!reverse && state.transferred.length>0)
+      throw new Error("실물 고정 보관함에는 한 번에 물체 1개만 놓도록 제한했습니다. 먼저 기존 물체를 반환해 주세요.");
+    sequence=reverse?buildReturnSequence(slot,state.calibration,open,close)
+      :buildPickSequence(slot,state.calibration,open,close);
     for(const step of sequence)ensurePhysicalLimits(step.angles);
-    if(!window.confirm("실물 로봇 이동 승인\n\n위치 보정과 장애물 제거를 확인했습니까?\n이 명령은 실제 모터를 움직입니다."))return;
-  } else {
-    sequence=buildPickSequence(slot,SIM_POSES,75,110);
+    const action=reverse?"보관함의 물체를 "+slot+"칸으로 반환":"물체를 "+slot+"칸에서 보관함으로 이동";
+    if(!window.confirm("실물 로봇 실행 확인\n\n"+action+
+      "\n물체 집기 위치, 빈 도착 칸, 전원 차단 장치 및 주변 안전을 확인했습니까?\n이 작업은 실제 서보모터를 움직입니다."))return;
+  }else {
+    sequence=reverse?buildReturnSequence(slot,SIM_POSES,open,close)
+      :buildPickSequence(slot,SIM_POSES,open,close);
   }
   state.running=true;state.cancelled=false;state.runToken=(state.runToken||0)+1;
   const token=state.runToken;
   $("execute").disabled=true;
-  log((state.mode==="real"?"REAL":"SIM")+" "+slot+"칸 → 보관함 집기 시작");
+  log((state.mode==="real"?"REAL":"SIM")+(reverse?" 보관함 → "+slot+"칸 반환 시작":" "+slot+"칸 → 보관함 이동 시작"));
   try{
     for(let i=0;i<sequence.length;i++){
       const step=sequence[i];
       status(step.label);
-      if(state.mode==="real") await physicalPose(step.angles,step.label);
+      if(state.mode==="real")await physicalPose(step.angles,step.label);
       else await simulatedMove(step.angles,step.label,token);
-      if(state.cancelled)throw new Error("동작이 중지되었습니다.");
+      if(state.cancelled)throw new Error("동작 중지됨");
       if(state.mode==="sim" && i===2){
-        $("object"+slot).style.opacity="0";
+        if(reverse){state.hiddenBinIndex=selected.index;renderBinInventory();}
+        else $("object"+slot).style.opacity="0";
         attachSimCarry(p.shape);
-        log("SIM "+slot+"칸 물체 집기 표현");
+        log("SIM "+(reverse?"보관함":"작업대")+" 물체 집기 표현");
       }
       if(state.mode==="sim" && i===6){
         clearSimCarry();
-        log("SIM 보관함에 물체 놓기 표현");
+        if(reverse){
+          const obj=$("object"+slot);
+          obj.replaceChildren(...iconForShape(p.shape));
+          obj.style.opacity="1";
+        }
+        log("SIM "+(reverse?slot+"칸":"보관함")+" 물체 놓기 표현");
       }
     }
     if(state.mode==="sim"){
-      transferObject(slot);
-      log("시뮬레이터: "+slot+"칸 물체를 보관함으로 옮겼습니다.");
-      say("시뮬레이션의 집기 경로를 완료했습니다. 실제 로봇의 집기 성공을 의미하지는 않습니다.");
+      if(reverse){
+        returnObject(selected.index,slot);
+        log("SIM 보관함의 "+shapeLabel(p.shape)+"을 "+slot+"칸으로 반환했습니다.");
+      }else{
+        transferObject(slot);
+        log("SIM "+slot+"칸 물체를 보관함으로 옮겼습니다.");
+      }
+      say("시뮬레이션의 "+(reverse?"반환":"집기")+" 과정이 완료됐습니다. 실제 로봇의 집기 성공을 의미하지는 않습니다.");
     }else{
-      log("실물 명령 시퀀스 종료. 사람 또는 카메라로 실제 집기 여부를 반드시 확인하세요.","warning");
-      say("Arduino 동작 명령은 완료되었습니다. 실제로 물체를 옮겼는지는 현장에서 확인하고 기록하세요.");
-      $("visionConfirmed").checked=false;
+      // Serial DONE means joint command complete, NOT physical object placement.
+      const verified=window.confirm("Arduino 이동 명령을 완료했습니다.\n\n실제로 "+(reverse?
+        "보관함 물체를 "+slot+"칸에 놓았습니까?":
+        slot+"칸 물체를 보관함에 옮겼습니까?")+
+        "\n실제 배치를 눈으로 확인한 경우에만 확인을 누르세요.");
+      if(verified){
+        if(reverse)returnObject(selected.index,slot);
+        else transferObject(slot);
+        log("REAL 사용자가 실제 물체 이동을 확인해 작업대 기록을 갱신했습니다.");
+        say("실제 물체 이동을 사용자가 확인한 것으로 기록했습니다.");
+      }else{
+        log("REAL 결과가 확인되지 않아 물체 위치 기록을 갱신하지 않았습니다.","warning");
+        say("실제 이동이 확인되지 않았습니다. 현장 위치를 다시 확인하고 필요한 경우 작업대 기록을 초기화해 주세요.");
+      }
     }
     status("작업 종료 · 결과 확인");
     setProposal(null);
   }catch(err){
-    if(state.mode==="sim" && state.observations[slot])$("object"+slot).style.opacity="1";
-    clearSimCarry();
+    if(state.mode==="sim"){
+      state.hiddenBinIndex=null;
+      renderWorkspace();
+    }
     notifyError(err);
-  }
-  finally{
+  }finally{
     clearSimCarry();
+    state.hiddenBinIndex=null;
+    renderBinInventory();
     state.running=false;
     $("execute").disabled=false;
   }
