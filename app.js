@@ -4,7 +4,8 @@ import {
   buildPickSequence, buildReturnSequence, resolveBinReturn, validAngles, poseLine, axisLine, messageLine, serialWhitelist
 } from "./protocol.js";
 import { mountCameraWorkspace } from "./guided-setup.js";
-import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS } from "./simulator-motion.js";
+import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS, WORLD_WAYPOINTS, worldTargetForStep, lerpWorld } from "./simulator-motion.js";
+import { create3DScene } from "./three-scene.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -17,7 +18,7 @@ const SIM_POSES = {
   HOVER_BIN:[151,90,82,75], PLACE_BIN:[151,112,104,75]
 };
 const state = {
-  mode:"sim", angles:[...DEFAULT_ANGLES], simTip:{...SIM_WAYPOINTS.HOME}, observations:{ A:"circle", B:"triangle", C:"cross" },
+  mode:"sim", angles:[...DEFAULT_ANGLES], simTip:{...SIM_WAYPOINTS.HOME}, simTarget3d:{...WORLD_WAYPOINTS.HOME}, carriedShape:null, view3d:null, view:"3d", observations:{ A:"circle", B:"triangle", C:"cross" },
   sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{}, boardModel:null,
   transferred:[], hiddenBinIndex:null, workspaces:{real:{observations:{A:'circle',B:'triangle',C:'cross'},transferred:[]}},
   running:false, cancelled:false, stopped:false,
@@ -44,6 +45,51 @@ function say(text,who="assistant") {
 function status(text) { $("sceneStatus").textContent=text; }
 function sleep(ms){return new Promise(ok=>setTimeout(ok,ms));}
 function notifyError(err){ const message=err instanceof Error?err.message:String(err);log(message,"error");say("실행 보류: "+message);status("실행 보류");}
+function sync3D(includeObjects=false) {
+  if(!state.view3d)return;
+  const details={
+    angles:state.angles,
+    target:state.mode==="sim"?state.simTarget3d:null
+  };
+  if(includeObjects){
+    details.observations=state.observations;
+    details.transferred=state.transferred;
+    details.hiddenIndex=state.hiddenBinIndex;
+    details.carrying=state.carriedShape;
+  }
+  state.view3d.update(details);
+}
+function changeViewport(view) {
+  const target=view==="2d"?"2d":"3d";
+  if(target==="3d"&&!state.view3d){
+    log("3D WebGL 초기화가 완료되지 않아 2D로 보여줍니다.","warning");
+    view="2d";
+  }else view=target;
+  state.view=view;
+  $("scene2dPanel").hidden=view!=="2d";
+  $("scene3dPanel").hidden=view!=="3d";
+  $("view2D").classList.toggle("active",view==="2d");
+  $("view3D").classList.toggle("active",view==="3d");
+  $("view2D").setAttribute("aria-pressed",String(view==="2d"));
+  $("view3D").setAttribute("aria-pressed",String(view==="3d"));
+  $("resetCamera3D").disabled=view!=="3d";
+  if(view==="3d")state.view3d?.resize();
+}
+function initialize3D() {
+  try{
+    state.view3d=create3DScene($("scene3d"),{
+      onWarning:message=>{const el=$("scene3dStatus");if(el)el.textContent=message;}
+    });
+    sync3D(true);
+    $("scene3dStatus").textContent="3D 입체 시연 · 마우스로 회전/확대 가능 · 실물 좌표 검증 아님";
+    changeViewport("3d");
+    log("3D 장면을 시작했습니다. 화면의 링크 치수는 참고 형상이며 실제 서보 관측값이 아닙니다.");
+  }catch(err){
+    $("scene3dStatus").textContent="WebGL 사용 불가 · 2D 화면으로 전환됩니다.";
+    log("3D 표시 초기화 실패: "+String(err?.message||err),"warning");
+    changeViewport("2d");
+  }
+}
 function setRunMode() {
   if(state.running){
     $("runMode").value=state.mode;
@@ -68,6 +114,7 @@ function setRunMode() {
     log("작업 기록을 "+(next==="sim"?"시뮬레이터":"실물")+" 작업대로 전환했습니다. 서로의 기록은 섞이지 않습니다.");
   }
   state.simTip=state.mode==="sim"?{...SIM_WAYPOINTS.HOME}:null;
+  state.simTarget3d=state.mode==="sim"?{...WORLD_WAYPOINTS.HOME}:null;
   renderRobot();
   $("modeBadge").innerHTML='<span class="dot"></span>'+(state.mode==="real"?"실물 Arduino 모드":"시뮬레이션");
   if(state.mode==="real")log("실물 모드: 보관함에서 반환하기 전 실제 물체와 비어 있는 도착 칸을 확인해야 합니다.","warning");
@@ -80,6 +127,7 @@ function setRunMode() {
   if(state.mode==="real" && !window.confirm("실물 작업대의 기록만 초기화합니다.\n실제 물체나 모터는 움직이지 않습니다. 물체 위치 기록을 삭제할까요?"))return;
   state.observations={A:"circle",B:"triangle",C:"cross"};
   state.simTip={...SIM_WAYPOINTS.HOME};
+  state.simTarget3d={...WORLD_WAYPOINTS.HOME};
   state.angles=[...DEFAULT_ANGLES];
   state.transferred=[];
   state.hiddenBinIndex=null;
@@ -110,6 +158,7 @@ function syncSlots() {
   $("visionMode").textContent="수동 확인";
   $("visionConfirmed").checked=false;
   setProposal(null);
+  sync3D(true);
 }
 function renderBinInventory() {
   const g=$("binItems");g.replaceChildren();
@@ -122,6 +171,7 @@ function renderBinInventory() {
   if($("binSummary"))$("binSummary").textContent=state.transferred.length
     ? "보관함 "+state.transferred.length+"개 · "+state.transferred.map(item=>shapeLabel(item.shape)+"("+item.origin+"칸 출발)").join(", ")
     : "보관함 비어 있음";
+  sync3D(true);
 }
 function renderWorkspace() {
   for(const slot of SLOTS){
@@ -153,14 +203,18 @@ function returnObject(index,destination) {
   $("visionConfirmed").checked=false;
 }
 function clearSimCarry(){
+  state.carriedShape=null;
   const previous=document.getElementById("simCarried");
   if(previous)previous.remove();
+  sync3D(true);
 }
 function attachSimCarry(shape){
   clearSimCarry();
+  state.carriedShape=shape;
   const g=svgEl("g",{id:"simCarried",transform:"translate(0 28) scale(.42)"});
   for(const c of iconForShape(shape))g.appendChild(c);
   $("gripper").appendChild(g);
+  sync3D(true);
 }
 function renderRobot(angles=state.angles) {
   // Illustration only. This is not physical inverse kinematics or collision checking.
@@ -177,6 +231,7 @@ function renderRobot(angles=state.angles) {
   const wide=12+Math.abs(angles[3]-90)*.2;
   $("finger1").setAttribute("d","M-21 0 L-"+wide+" 22 L-8 22");
   $("finger2").setAttribute("d","M21 0 L"+wide+" 22 L8 22");
+  sync3D(false);
 }
 function refreshSliders(){
   document.querySelectorAll(".joint input").forEach((el,i)=>{
@@ -191,7 +246,7 @@ function buildSliders(){
     const title=document.createElement("strong");title.textContent=(i+1)+". "+label;
     const input=document.createElement("input");input.type="range";input.min=angleLimits[i][0];input.max=angleLimits[i][1];input.step="1";input.value=state.angles[i];input.id="joint"+i;input.setAttribute("aria-label",label+" 각도");
     const out=document.createElement("output");out.id="out"+i;out.textContent=state.angles[i]+"°";
-    input.addEventListener("input",()=>{if(state.running){refreshSliders();return;}state.angles[i]=Number(input.value);state.simTip=null;out.textContent=input.value+"°";renderRobot();});
+    input.addEventListener("input",()=>{if(state.running){refreshSliders();return;}state.angles[i]=Number(input.value);state.simTip=null;state.simTarget3d=null;out.textContent=input.value+"°";renderRobot();});
     div.append(title,input,out);root.append(div);
   });
 }
@@ -254,6 +309,8 @@ async function simulatedMove(angles,label,token){
   const startAngles=[...state.angles];
   const from=state.simTip||manualVisualTip(startAngles);
   const target=targetForStep(label);
+  const from3D=state.simTarget3d||WORLD_WAYPOINTS.HOME;
+  const target3D=worldTargetForStep(label);
   const duration=660,begin=performance.now();
   while(true) {
     if(state.cancelled || token!==state.runToken)throw new Error("동작이 중단되었습니다.");
@@ -261,6 +318,7 @@ async function simulatedMove(angles,label,token){
     const eased=t*t*(3-2*t);
     state.angles=startAngles.map((v,i)=>Math.round(v+(angles[i]-v)*eased));
     state.simTip={x:from.x+(target.x-from.x)*eased,y:from.y+(target.y-from.y)*eased};
+    state.simTarget3d=lerpWorld(from3D,target3D,eased);
     refreshSliders();
     if(t>=1)break;
     await new Promise(ok=>requestAnimationFrame(ok));
@@ -654,9 +712,13 @@ function bind(id,event,fn){
 }
 function boot(){
   buildSliders();restoreCalibration();renderRobot();
+  initialize3D();
   mountCameraWorkspace({state,onLog:message=>log(message)});
   log("시뮬레이터 시작. Arduino 연결 전 실제 모터는 움직이지 않습니다.");
   bind("runMode","change",setRunMode);
+  bind("view3D","click",()=>changeViewport("3d"));
+  bind("view2D","click",()=>changeViewport("2d"));
+  bind("resetCamera3D","click",()=>state.view3d?.resetCamera());
   bind("resetSim","click",resetObservations);
   for(const slot of SLOTS)bind("mark"+slot,"change",syncSlots);
   bind("chatForm","submit",onChat);
@@ -667,7 +729,9 @@ function boot(){
   bind("home","click",()=>{
     const home=state.mode==="sim"?SIM_POSES.HOME:state.calibration.HOME;
     if(!home)throw new Error("실물 HOME 위치를 보정하세요.");
-    state.angles=[...home];refreshSliders();
+    state.angles=[...home];
+    if(state.mode==="sim"){state.simTip={...SIM_WAYPOINTS.HOME};state.simTarget3d={...WORLD_WAYPOINTS.HOME};}
+    refreshSliders();
     status("HOME 각도 표시 · 실제 모터는 아직 움직이지 않음");
   });
   bind("sendPose","click",manualSend);
@@ -711,6 +775,7 @@ function boot(){
       const index=state.selectedJoint||0;
       const shift=e.key==="ArrowRight"?2:-2;
       state.angles[index]=Math.min(angleLimits[index][1],Math.max(angleLimits[index][0],state.angles[index]+shift));
+      state.simTip=null;state.simTarget3d=null;
       refreshSliders();
     }
   });
