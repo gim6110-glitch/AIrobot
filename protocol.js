@@ -1,7 +1,7 @@
 // Shared, dependency-free safety and command parsing helpers.
 // Human approval and firmware checks are STILL required for physical movement.
 export const AXES = ["base", "shoulder", "elbow", "grip"];
-export const SHAPES = ["circle", "triangle", "cross"];
+export const SHAPES = ["circle", "triangle", "cross", "star"];
 export const SLOTS = ["A", "B", "C"];
 export const POSE_NAMES = ["HOME", "HOVER_A", "PICK_A", "HOVER_B", "PICK_B", "HOVER_C", "PICK_C", "HOVER_BIN", "PLACE_BIN"];
 export const DEFAULT_ANGLES = Object.freeze([90, 90, 90, 90]);
@@ -27,11 +27,12 @@ export function normalizeShape(text) {
   if (/(삼각형|세모|triangle)/.test(t)) return "triangle";
   if (/(원형|동그라미|circle|원(?:을|이|은|의|으로|에서|[\s,.!?]|$))/.test(t)) return "circle";
   if (/(십자|더하기|cross)/.test(t)) return "cross";
+  if (/(별\s*모양|오각별|별표|star)/.test(t)) return "star";
   return null;
 }
 
 export function shapeLabel(shape) {
-  return ({ circle: "원", triangle: "삼각형", cross: "십자" })[shape] || "?";
+  return ({ circle: "원", triangle: "삼각형", cross: "십자", star: "별" })[shape] || "?";
 }
 
 export function parseLocalIntent(text) {
