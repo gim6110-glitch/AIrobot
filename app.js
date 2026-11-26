@@ -54,6 +54,7 @@ function setRunMode() {
   renderRobot();
   $("modeBadge").innerHTML='<span class="dot"></span>'+(state.mode==="real"?"실물 Arduino 모드":"시뮬레이션");
   if(state.mode==="real") log("실물 모드: USB 연결·보정·승인이 필요합니다.","warning");
+  $("confirmLabel").textContent=state.mode==="real"?"실물 작업대 대상·위치·로봇 주변 안전을 직접 확인했습니다.":"시뮬레이터에서 옮길 대상과 목적지를 확인했습니다.";
   status(state.mode==="real"?"실물 모드 준비":"시뮬레이션 준비");
 }
 function resetObservations() {
@@ -163,7 +164,8 @@ function setProposal(p) {
   state.pending=p;
   $("proposal").classList.toggle("hidden",!p);
   $("confirmAction").checked=false;
-  if(p){$("proposalText").textContent=p.text;$("execute").disabled=false;}
+  if(p){$("proposalText").textContent=p.text;$("execute").disabled=false;
+    $("confirmLabel").textContent=state.mode==="real"?"실물 작업대 대상·위치·로봇 주변 안전을 직접 확인했습니다.":"시뮬레이터에서 옮길 대상과 목적지를 확인했습니다.";}
 }
 async function parseChat(text){
   if($("aiMode").value==="rule"){
@@ -190,7 +192,7 @@ async function onChat(event){
     const observed=state.observations[slot];
     if(!observed)throw new Error(slot+"칸의 물체를 확인할 수 없습니다.");
     say((source==="llm"?"LLM 결과":"규칙 기반 해석")+
-      "\n대상: "+shapeLabel(observed)+" / 출발: "+slot+"칸 / 목적지: 보관함\n아직 실행하지 않았습니다. 실제 표식과 작업 환경을 확인하세요.");
+      "\n대상: "+shapeLabel(observed)+" / 출발: "+slot+"칸 / 목적지: 보관함\n아직 실행하지 않았습니다. "+(state.mode==="sim"?"시뮬레이터에서는 아래 실행 승인만 체크하세요.":"실제 표식·작업 환경과 카메라 확인란까지 점검하세요.")+"");
     setProposal({slot,shape:observed,text:"작업 대상 "+slot+"칸 · "+shapeLabel(observed)+" → 보관함. "+(source==="rule"?"규칙 기반 해석(LLM 아님)":"LLM 해석")+". 사람이 검증 후 승인할 때만 실행합니다."});
   }catch(err){notifyError(err)}finally{button.disabled=false}
 }
