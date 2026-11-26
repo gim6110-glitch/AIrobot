@@ -1,0 +1,13 @@
+{
+  "name": "davibot-airobot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI × mechanical design educational robot simulator and Web Serial interface",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
