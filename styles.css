@@ -56,8 +56,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #97d9cf;outline-
 .subpanel summary{cursor:pointer;font-size:13px;font-weight:800;list-style-position:inside}
 .subpanel summary span{color:#7d97a4;font-weight:500;margin-left:8px}
 .camera-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
-.video-box{position:relative;background:#132e3c;min-height:160px;border-radius:9px;overflow:hidden}
-.video-box video{height:100%;width:100%;object-fit:cover;display:block}
+.video-box{position:relative;background:#132e3c;min-height:0;aspect-ratio:16/9;border-radius:9px;overflow:hidden}
+.video-box video{position:absolute;inset:0;height:100%;width:100%;object-fit:contain;display:block}
 .camera-guide{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);pointer-events:none}
 .camera-guide span{border-right:1px dashed #ffffff80;color:white;font-weight:800;padding:9px;background:#071a251a}
 .camera-buttons{display:flex;gap:8px;flex-direction:column}
