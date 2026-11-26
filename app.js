@@ -28,7 +28,7 @@ const state = {
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
   stream:null, model:null, modelUrl:"", calibration:{}, lastSentAngles:null, cameraLabels:[]
 };
-const HISTORY_KEY="davibot-log-v1", CAL_KEY="davibot-poses-v1";
+const HISTORY_KEY="davibot-log-v1", CAL_KEY="davibot-poses-v1", CAMERA_KEY="davibot-camera-mount-v1";
 
 function log(message, type="info") {
   const time = new Date().toLocaleTimeString("ko-KR",{hour12:false});
@@ -66,6 +66,59 @@ function sync3D(includeObjects=false) {
     details.previewInBin=state.previewInBin;
   }
   state.view3d.update(details);
+}
+function readCameraControls(){
+  return normalizeCameraConfig({
+    heightMm:Number($("cameraHeight").value)*10,
+    offsetXmm:Number($("cameraOffsetX").value)*10,
+    offsetZmm:Number($("cameraOffsetZ").value)*10,
+    fovDeg:Number($("cameraFov").value),
+    showFootprint:$("cameraFootprint").checked
+  });
+}
+function cameraCoordinatesText(c){
+  const p=cameraPosition(c);
+  const offsetCm=n=>(n>=0?"+":"")+(n/10).toFixed(1)+" cm";
+  return "3D 카메라 중심: 베이스 기준 정면 X "+(p.x/10).toFixed(1)+
+    " cm, 높이 "+(p.y/10).toFixed(1)+" cm, 좌우 Z "+(p.z/10).toFixed(1)+
+    " cm · 오프셋 ("+offsetCm(c.offsetXmm)+", "+offsetCm(c.offsetZmm)+"). "+
+    "실제 카메라의 화각·가림·선명도는 웹캠 영상을 직접 확인하세요.";
+}
+function setCameraControls(c,{save=true}={}){
+  const conf=normalizeCameraConfig(c);
+  state.cameraConfig=conf;
+  $("cameraHeight").value=String(conf.heightMm/10);
+  $("cameraOffsetX").value=String(conf.offsetXmm/10);
+  $("cameraOffsetZ").value=String(conf.offsetZmm/10);
+  $("cameraFov").value=String(conf.fovDeg);
+  $("cameraFootprint").checked=conf.showFootprint;
+  $("cameraHeightOut").textContent=(conf.heightMm/10).toFixed(0)+" cm";
+  $("cameraOffsetXOut").textContent=(conf.offsetXmm>=0?"+":"")+(conf.offsetXmm/10).toFixed(1)+" cm";
+  $("cameraOffsetZOut").textContent=(conf.offsetZmm>=0?"+":"")+(conf.offsetZmm/10).toFixed(1)+" cm";
+  $("cameraFovOut").textContent=conf.fovDeg+"°";
+  $("cameraMountInfo").textContent=cameraCoordinatesText(conf);
+  state.view3d?.updateCameraMount(conf);
+  if(save){
+    try{localStorage.setItem(CAMERA_KEY,JSON.stringify(conf));}catch{}
+  }
+}
+function initializeCameraControls(){
+  let saved=null;
+  try{saved=JSON.parse(localStorage.getItem(CAMERA_KEY)||"null");}catch{}
+  try{setCameraControls(saved?normalizeCameraConfig(saved):CAMERA_DEFAULT,{save:false});}
+  catch{setCameraControls(CAMERA_DEFAULT,{save:false});}
+  for(const id of ["cameraHeight","cameraOffsetX","cameraOffsetZ","cameraFov","cameraFootprint"]){
+    bind(id,"input",()=>setCameraControls(readCameraControls()));
+    bind(id,"change",()=>setCameraControls(readCameraControls()));
+  }
+  bind("resetCameraMount","click",()=>setCameraControls(CAMERA_DEFAULT));
+  bind("viewFromMountedCamera","click",()=>{
+    changeViewport("3d");
+    if(state.view3d){
+      state.view3d.viewFromMountedCamera();
+      log("3D에서 설정한 카메라의 예상 시점을 표시합니다. 웹캠 실제 영상·렌즈 교정과 동일하지 않습니다.");
+    }
+  });
 }
 function changeViewport(view) {
   const target=view==="2d"?"2d":"3d";
@@ -732,6 +785,7 @@ function bind(id,event,fn){
 function boot(){
   buildSliders();restoreCalibration();renderRobot();
   initialize3D();
+  initializeCameraControls();
   mountCameraWorkspace({state,onLog:message=>log(message)});
   log("시뮬레이터 시작. Arduino 연결 전 실제 모터는 움직이지 않습니다.");
   bind("runMode","change",setRunMode);
