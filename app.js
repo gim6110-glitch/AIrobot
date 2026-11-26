@@ -20,7 +20,7 @@ const state = {
   transferred:[], running:false, cancelled:false, stopped:false,
   pending:null, connected:false, armed:false, port:null, writer:null, reader:null,
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
-  stream:null, model:null, modelUrl:"", calibration:{}, cameraLabels:[]
+  stream:null, model:null, modelUrl:"", calibration:{}, lastSentAngles:null, cameraLabels:[]
 };
 const HISTORY_KEY="davibot-log-v1", CAL_KEY="davibot-poses-v1";
 
@@ -193,7 +193,7 @@ async function physicalPose(angles,label){
   const waiter=waitForLine(line=>/^DONE POSE\b/.test(line),12000);
   await writeLine(poseLine(angles));
   try {await waiter;} catch(err){if(state.connected)await writeLine("STOP\n").catch(()=>{});throw err;}
-  state.angles=[...angles];refreshSliders();log("ARDUINO "+label+" (모터 명령 완료 — 집기 성공 아님)");
+  state.angles=[...angles];state.lastSentAngles=[...angles];refreshSliders();log("ARDUINO "+label+" (모터 명령 완료 — 집기 성공 아님)");
 }
 async function runPick(){
   const p=state.pending;
@@ -251,7 +251,7 @@ async function connectSerial(){
   if(state.connected)return;
   const port=await navigator.serial.requestPort();
   await port.open({baudRate:115200,bufferSize:255});
-  state.port=port;state.connected=true;state.armed=false;state.stopped=false;
+  state.port=port;state.connected=true;state.armed=false;state.stopped=false;state.lastSentAngles=null;
   state.writer=port.writable.getWriter();
   state.reader=port.readable.getReader();
   state.decoder=new TextDecoder();state.rx="";
@@ -325,7 +325,7 @@ async function disconnectSerial(){
   try{state.reader?.releaseLock()}catch{}
   try{state.writer?.releaseLock()}catch{}
   try{await state.port?.close()}catch{}
-  state.reader=null;state.writer=null;state.port=null;
+  state.reader=null;state.writer=null;state.port=null;state.lastSentAngles=null;
   $("connectionBadge").textContent="연결 안 됨";
   log("USB 연결 해제. 서보 전원을 별도로 확인하세요.","warning");
 }
@@ -376,6 +376,8 @@ function updateCalibrationProgress(){
 }
 function savePose(){
   if(state.mode!=="real"||!state.connected)throw new Error("실물 모드에서 USB에 연결한 뒤 위치를 보정하세요.");
+  if(!state.lastSentAngles || !state.lastSentAngles.every((v,i)=>v===state.angles[i]))
+    throw new Error("현재 각도를 실제 모터에 전송하고 움직임을 확인한 후 저장해 주세요.");
   if(!window.confirm($("poseName").value+"를 현재 각도로 저장하시겠습니까?\n실물 작업대에서 이 위치가 안전한지 확인한 뒤 저장하세요."))return;
   ensurePhysicalLimits(state.angles);
   state.calibration[$("poseName").value]=[...state.angles];
