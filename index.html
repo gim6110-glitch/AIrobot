@@ -78,7 +78,7 @@
           <rect x="22" y="17" width="275" height="42" rx="10" fill="#fff" opacity=".96"/>
           <circle id="sceneDot" cx="43" cy="38" r="6" fill="#1f9f84"/>
           <text id="sceneStatus" x="61" y="44" font-size="16" font-weight="700" fill="#1b435e">대기 · 시뮬레이션</text>
-          <text x="26" y="445" font-size="13" fill="#546e7d">개념도 · 실제 EEZYbotARM 링크 길이·각도·좌표를 정확히 재현한 물리 시뮬레이터는 아닙니다.</text>
+          <text id="sceneFootnote" x="26" y="445" font-size="12" fill="#546e7d">개념도 · 실제 EEZYbotARM 링크 길이·각도·좌표를 정확히 재현한 물리 시뮬레이터는 아닙니다.</text>
         </svg>
       </div>
       <div class="lab-footer">
@@ -137,7 +137,7 @@
       <div id="proposal" class="proposal hidden">
         <div class="proposal-title">실행 후보 · 사람 검증 필수</div>
         <p id="proposalText"></p>
-        <label class="checkline"><input id="confirmAction" type="checkbox"/> 화면의 대상·위치·로봇 주변 안전을 확인했습니다.</label>
+        <label class="checkline"><input id="confirmAction" type="checkbox"/> <span id="confirmLabel">시뮬레이터에서 옮길 대상과 목적지를 확인했습니다.</span></label>
         <button id="execute" class="btn primary wide" type="button">확인한 작업 실행</button>
       </div>
     </section>
