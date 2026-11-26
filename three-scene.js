@@ -11,6 +11,10 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { MK2_REFERENCE } from "./kinematics.js";
 import { WORLD_WAYPOINTS } from "./simulator-motion.js";
+import {
+ CAMERA_DEFAULT,CAMERA_TARGET,CAMERA_STAND,normalizeCameraConfig,cameraPosition,
+ footprintCorners,gripObjectOrigin,fingerHalfGap,binItemOffset,ITEM_ORIGIN_BELOW_TIP_MM
+} from "./camera-layout.js";
 
 const COLORS={orange:0xe75d2a,orangeDark:0xb83c1a,ink:0x233e50,
   navy:0x2b5065,teal:0x0ba58b,mint:0xdff5ee,table:0xe8f0f3,
@@ -70,6 +74,17 @@ function markerGeometry(shape) {
     s.moveTo(0,12);s.lineTo(-12,-9);s.lineTo(12,-9);s.closePath();
     const top=mesh(new THREE.ShapeGeometry(s),dark,g);
     top.rotation.x=-Math.PI/2;top.position.y=20;
+  }else if(shape==="star"){
+    const star=new THREE.Shape();
+    for(let i=0;i<10;i++){
+      const angle=-Math.PI/2+i*Math.PI/5;
+      const radius=i%2===0?14:6.5;
+      const x=Math.cos(angle)*radius,y=Math.sin(angle)*radius;
+      if(i===0)star.moveTo(x,y);else star.lineTo(x,y);
+    }
+    star.closePath();
+    const top=mesh(new THREE.ShapeGeometry(star),dark,g);
+    top.rotation.x=-Math.PI/2;top.position.y=21;
   }else if(shape==="cross"){
     block(g,6,2,25,COLORS.ink,0,21,0);
     block(g,25,2,6,COLORS.ink,0,21,0);
@@ -128,7 +143,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.setClearColor(0xeaf3f6);
   host.appendChild(renderer.domElement);
-  renderer.domElement.setAttribute("aria-label","3차원 로봇팔 장면. 마우스로 회전, 휠로 확대, 오른쪽 버튼으로 이동합니다.");
+  renderer.domElement.setAttribute("aria-label","3차원 로봇팔. 왼쪽 또는 가운데 버튼 드래그로 회전하고, 휠 스크롤로 확대하고, 오른쪽 버튼 드래그로 이동합니다.");
 
   const scene=new THREE.Scene();
   scene.background=new THREE.Color(0xeaf3f6);
@@ -138,6 +153,12 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   camera.position.copy(defaultCamera);camera.lookAt(focus);
   const controls=new OrbitControls(camera,renderer.domElement);
   controls.target.copy(focus);controls.enableDamping=true;controls.dampingFactor=0.07;
+  // Middle button drag rotates instead of invoking OrbitControls' usual dolly.
+  // Wheel scroll (without clicking) continues to zoom.
+  controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:THREE.MOUSE.PAN};
+  const cancelMiddleAutoscroll=e=>{if(e.button===1)e.preventDefault();};
+  renderer.domElement.addEventListener("mousedown",cancelMiddleAutoscroll);
+  renderer.domElement.addEventListener("auxclick",cancelMiddleAutoscroll);
   controls.minDistance=230;controls.maxDistance=1220;
   controls.maxPolarAngle=Math.PI/2-0.04;
   controls.update();
@@ -205,9 +226,14 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   const palm=block(tipGroup,29,15,24,COLORS.orange,0,5,0);
   const leftFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,-15);
   const rightFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,15);
-  const carried=new THREE.Group();scene.add(carried);
+  // The carried object's center is attached in the GRIPPER LOCAL FRAME:
+  // it can no longer drift sideways when the base yaw changes.
+  const carried=new THREE.Group();
+  tipGroup.add(carried);
+  carried.position.set(0,-ITEM_ORIGIN_BELOW_TIP_MM,0);
   let currentAngles=[90,90,90,90],currentTip=null;
   let currentObservation={},inventory=[],hiddenBinIndex=null,carriedShape=null;
+  let hiddenSlot=null,previewSlot=null,previewBin=null;
 
   function setGroupSymbol(holder,shape){
     holder.clear();
@@ -215,15 +241,24 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   }
   function refreshObjects(){
     for(const slot of ["A","B","C"]){
-      setGroupSymbol(slotObjects[slot],currentObservation[slot]||null);
+      setGroupSymbol(slotObjects[slot],
+        previewSlot?.slot===slot?previewSlot.shape:
+        hiddenSlot===slot?null:currentObservation[slot]||null);
     }
     binItemsGroup.clear();
     inventory.forEach((item,i)=>{
       if(i===hiddenBinIndex||!item?.shape)return;
       const ob=markerGeometry(item.shape);
-      ob.position.set((i%3-1)*27,Math.floor(i/3)*23,Math.floor(i/3)*10);
+      const offset=binItemOffset(i);
+      ob.position.set(offset.x,offset.y,offset.z);
       ob.scale.setScalar(0.7);binItemsGroup.add(ob);
     });
+    if(previewBin?.shape){
+      const obj=markerGeometry(previewBin.shape),offset=binItemOffset(previewBin.index);
+      obj.position.set(offset.x,offset.y,offset.z);
+      obj.scale.setScalar(0.88);
+      binItemsGroup.add(obj);
+    }
     setGroupSymbol(carried,carriedShape);
   }
   function updateArm(){
@@ -240,21 +275,27 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     toolJoint.position.set(c.x,c.y,c.z);
     tipGroup.position.set(tip.x,tip.y,tip.z);
     tipGroup.rotation.y=-yaw;
-    const opening=Math.max(12,Math.min(40,12+Math.abs(currentAngles[3]-90)*0.23));
-    leftFinger.position.z=-opening/2;
-    rightFinger.position.z=opening/2;
-    carried.position.set(tip.x,tip.y-42,tip.z);
-    carried.scale.setScalar(0.88);
+    const opening=fingerHalfGap(currentAngles[3],Boolean(carriedShape));
+    leftFinger.position.z=-opening;
+    rightFinger.position.z=opening;
+    carried.position.set(0,-ITEM_ORIGIN_BELOW_TIP_MM,0);
+    carried.scale.setScalar(1);
     if(unreachable)onWarning("3D 시각화의 도달범위를 벗어난 목표입니다. 실물 동작의 가능 여부가 아닙니다.");
   }
-  function update({angles,target,observations,transferred,hiddenIndex,carrying}={}){
+  function update({angles,target,observations,transferred,hiddenIndex,carrying,hiddenSource,previewAtSlot,previewInBin}={}){
     if(angles)currentAngles=[...angles];
     if(target!==undefined)currentTip=target?{...target}:null;
     if(observations)currentObservation={...observations};
     if(transferred)inventory=transferred.map(x=>({...x}));
     if(hiddenIndex!==undefined)hiddenBinIndex=hiddenIndex;
     if(carrying!==undefined)carriedShape=carrying;
-    updateArm();refreshObjects();
+    if(hiddenSource!==undefined)hiddenSlot=hiddenSource;
+    if(previewAtSlot!==undefined)previewSlot=previewAtSlot;
+    if(previewInBin!==undefined)previewBin=previewInBin;
+    updateArm();
+    if(observations!==undefined||transferred!==undefined||hiddenIndex!==undefined||
+       carrying!==undefined||hiddenSource!==undefined||previewAtSlot!==undefined||previewInBin!==undefined)
+       refreshObjects();
   }
   function resize(){
     const width=Math.max(320,host.clientWidth);
@@ -280,6 +321,8 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     update,resetCamera,resize,
     dispose(){
       disposed=true;cancelAnimationFrame(raf);observer.disconnect();controls.dispose();
+      renderer.domElement.removeEventListener("mousedown",cancelMiddleAutoscroll);
+      renderer.domElement.removeEventListener("auxclick",cancelMiddleAutoscroll);
       scene.traverse(o=>{
         if(o.geometry)o.geometry.dispose();
         const mats=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
