@@ -41,7 +41,7 @@
       </div>
       <div id="scene3dPanel" class="scene3d-panel">
         <div id="scene3d" class="scene3d-host" aria-label="회전 및 확대가 가능한 3차원 로봇팔 시뮬레이션"></div>
-        <div class="scene3d-hint"><strong>3D 참고 형상</strong> · 왼쪽·가운데 버튼 드래그: 회전 · 휠 스크롤: 확대 · 오른쪽 버튼 드래그: 이동</div>
+        <div class="scene3d-hint"><strong>3D 참고 형상</strong> · 왼쪽/가운데 휠 버튼 누른 채 드래그: 회전 · 휠 굴리기: 확대/축소 · 오른쪽 드래그: 이동 · 카메라 거치대 표시</div>
         <div id="scene3dStatus" class="scene3d-status">3D 로봇팔 장면을 불러오는 중…</div>
       </div>
       <div class="scene-wrap" id="scene2dPanel" hidden>
@@ -95,7 +95,7 @@
       </div>
       <details class="camera-mount-settings" id="cameraMountPanel">
         <summary>촬영용 카메라 설치 위치 설정 <span>실물 거치대 참고 · 3D 미리보기</span></summary>
-        <p class="hint">카메라는 로봇팔에 달지 않고 작업대 위의 독립 거치대에 고정하세요. 로봇팔이 움직여도 화면 속 A·B·C칸과 보관함이 보이는 위치가 좋습니다.</p>
+        <p class="hint">권장 시작 위치: 로봇 베이스 기준 정면 X 약 +32cm, 좌우 Z 약 -2cm, 카메라 몸체 높이 약 55cm. 작업대 가장자리의 독립 거치대에 고정하고 렌즈를 A·B·C 및 보관함 중앙으로 기울이세요. 움직이는 로봇팔이나 집게에 부착하지 마세요.</p>
         <div class="camera-mount-grid">
           <label>작업대에서 카메라 높이 <output id="cameraHeightOut">55 cm</output><input id="cameraHeight" type="range" min="36" max="80" step="1" value="55"/></label>
           <label>정면 방향 X 오프셋 <output id="cameraOffsetXOut">+5.5 cm</output><input id="cameraOffsetX" type="range" min="-15" max="15" step="0.5" value="5.5"/></label>
@@ -108,7 +108,7 @@
           <button id="resetCameraMount" class="btn subtle" type="button">권장 위치로 되돌리기</button>
         </div>
         <p id="cameraMountInfo" class="hint" aria-live="polite">권장 시작값: 높이 약 55cm. 실제 화각·해상도·가림 현상은 카메라 영상으로 확인해야 합니다.</p>
-        <p class="hint">위 3D 설정은 카메라를 물리적으로 움직이지 않습니다. 실물에 설치한 뒤에는 웹캠 영상 확인과 A4 기준 평면 보정을 다시 해야 합니다. 깊이(Z) 측정 기능은 아닙니다.</p>
+        <p class="hint">3D 카메라 화각은 16:9 웹캠을 가정한 예상 범위입니다. 실물에서 거치대 높이·기울기·조명과 로봇팔 가림을 확인하고 웹캠 영상으로 A4 평면 보정을 다시 진행하세요. 물체의 높이·깊이 측정은 지원하지 않습니다.</p>
       </details>
       <div class="lab-footer">
         <div><strong>작업대 A·B·C · 3D 시뮬레이터</strong><span>3D 모델은 EEZYbotARM Mk2 참고 치수로 구성한 개념 형상이며, 실물 관절 영점·충돌을 검증한 모델은 아닙니다. <span id="binSummary">보관함 비어 있음</span></span></div>

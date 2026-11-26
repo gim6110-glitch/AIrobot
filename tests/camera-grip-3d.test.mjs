@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
- CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,footprintCorners,
+ CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,cameraLensPosition,footprintCorners,
  gripObjectOrigin,fingerHalfGap,ITEM_RADIUS_MM,FINGER_THICKNESS_MM,
  binItemOffset,BIN_ITEM_CAPACITY
 } from "../camera-layout.js";
@@ -46,11 +46,14 @@ test("storage bin pickup/deposit aligns first/second/third object centers",()=>{
     assert.ok(Math.abs(offset.x)<45);
   }
 });
-test("closed finger tips surround every same-sized marker rather than overlap its center",()=>{
-  const half=fingerHalfGap(110,true);
-  assert.ok(half-FINGER_THICKNESS_MM/2>=ITEM_RADIUS_MM);
-  assert.ok(fingerHalfGap(75,false)>half);
-  assert.equal(fingerHalfGap(110,false),half);
+test("closed finger pads contact all four similarly sized marked carrier discs",()=>{
+  for(const shape of ["circle","triangle","star","cross"]){
+    const inner=fingerHalfGap(110,true)-FINGER_THICKNESS_MM/2;
+    assert.ok(inner<ITEM_RADIUS_MM,"contact for "+shape);
+    assert.ok(inner>ITEM_RADIUS_MM-3,"avoid deep interpenetration");
+  }
+  assert.ok(fingerHalfGap(75,false)-FINGER_THICKNESS_MM/2>ITEM_RADIUS_MM+5);
+  assert.equal(fingerHalfGap(110,false),fingerHalfGap(110,true));
 });
 test("star is independent from the existing cross and can be used in commands",()=>{
   assert.equal(normalizeShape("별 모양"),"star");
@@ -65,6 +68,18 @@ test("camera settings enforce physical-plausible displayed ranges",()=>{
   assert.throws(()=>normalizeCameraConfig({fovDeg:130}));
   assert.throws(()=>normalizeCameraConfig({offsetXmm:500}));
   assert.equal(cameraPosition().y,550);
+});
+test("lens position is below the overhead housing and aimed at the worktop",()=>{
+  const body=cameraPosition(),lens=cameraLensPosition();
+  assert.ok(lens.y<body.y&&lens.y>100);
+  assert.ok(lens.x<body.x&&lens.z>body.z);
+});
+test("mounted view has stable overhead screen orientation and a real optical frame",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const src=await readFile(new URL("../three-scene.js",import.meta.url),"utf8");
+  assert.ok(src.includes("camera.up.set(1,0,0)"));
+  assert.ok(src.includes("cameraAssembly.quaternion.setFromUnitVectors"));
+  assert.ok(src.includes('addEventListener("pointerdown",cancelMiddleAutoscroll'));
 });
 test("default mounted camera estimated footprint includes A, B, C and bin",()=>{
   const quadrilateral=footprintCorners();

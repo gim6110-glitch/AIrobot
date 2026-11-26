@@ -6,7 +6,7 @@ import {
 import { mountCameraWorkspace } from "./guided-setup.js";
 import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS, WORLD_WAYPOINTS, worldTargetForStep, lerpWorld } from "./simulator-motion.js";
 import { create3DScene } from "./three-scene.js";
-import { CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,BIN_ITEM_CAPACITY } from "./camera-layout.js";
+import { CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,cameraLensPosition,BIN_ITEM_CAPACITY } from "./camera-layout.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -77,12 +77,13 @@ function readCameraControls(){
   });
 }
 function cameraCoordinatesText(c){
-  const p=cameraPosition(c);
+  const p=cameraPosition(c),lens=cameraLensPosition(c);
   const offsetCm=n=>(n>=0?"+":"")+(n/10).toFixed(1)+" cm";
   return "3D 카메라 중심: 베이스 기준 정면 X "+(p.x/10).toFixed(1)+
     " cm, 높이 "+(p.y/10).toFixed(1)+" cm, 좌우 Z "+(p.z/10).toFixed(1)+
-    " cm · 오프셋 ("+offsetCm(c.offsetXmm)+", "+offsetCm(c.offsetZmm)+"). "+
-    "실제 카메라의 화각·가림·선명도는 웹캠 영상을 직접 확인하세요.";
+    " cm · 렌즈 높이 약 "+(lens.y/10).toFixed(1)+" cm · 오프셋 ("+
+    offsetCm(c.offsetXmm)+", "+offsetCm(c.offsetZmm)+"). "+
+    "독립 거치대에 단단히 고정하고 A·B·C 및 보관함이 함께 보이는지 웹캠 영상으로 확인하세요.";
 }
 function setCameraControls(c,{save=true}={}){
   const conf=normalizeCameraConfig(c);

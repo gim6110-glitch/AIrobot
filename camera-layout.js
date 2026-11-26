@@ -10,7 +10,10 @@ export const CAMERA_STAND = Object.freeze({x:480,y:0,z:-202});
 export const ITEM_ORIGIN_BELOW_TIP_MM = 25;
 export const ITEM_RADIUS_MM = 18;
 export const FINGER_THICKNESS_MM = 9;
-export const FINGER_HALF_GAP_CLOSED_MM = 23;
+// Contact compression for all printed symbols on the shared round carrier.
+export const GRIP_CONTACT_COMPRESSION_MM=1.5;
+export const FINGER_HALF_GAP_CLOSED_MM=ITEM_RADIUS_MM+FINGER_THICKNESS_MM/2-GRIP_CONTACT_COMPRESSION_MM;
+export const CAMERA_OPTICAL_INSET_MM=20;
 export const FINGER_HALF_GAP_OPEN_MM = 32;
 export const BIN_ITEM_SPACING_MM = 14;
 export const BIN_ITEM_CAPACITY = 3;
@@ -34,6 +37,13 @@ export function cameraPosition(config=CAMERA_DEFAULT){
     z:CAMERA_TARGET.z+cfg.offsetZmm
   };
 }
+export function cameraLensPosition(config=CAMERA_DEFAULT){
+  const p=cameraPosition(config),d=[CAMERA_TARGET.x-p.x,CAMERA_TARGET.y-p.y,CAMERA_TARGET.z-p.z];
+  const len=Math.hypot(...d);
+  return {x:p.x+CAMERA_OPTICAL_INSET_MM*d[0]/len,
+    y:p.y+CAMERA_OPTICAL_INSET_MM*d[1]/len,
+    z:p.z+CAMERA_OPTICAL_INSET_MM*d[2]/len};
+}
 export function binItemOffset(index){
   if(!Number.isInteger(index)||index<0||index>=BIN_ITEM_CAPACITY)
     throw new Error("시뮬레이터 보관함에는 최대 "+BIN_ITEM_CAPACITY+"개만 표현할 수 있습니다.");
@@ -51,7 +61,7 @@ export function fingerHalfGap(angle=75,carrying=false){
 }
 export function footprintCorners(config=CAMERA_DEFAULT,aspect=16/9){
   const cfg=normalizeCameraConfig(config);
-  const p=cameraPosition(cfg),target=CAMERA_TARGET;
+  const p=cameraLensPosition(cfg),target=CAMERA_TARGET;
   const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};
   const forward=norm([target.x-p.x,target.y-p.y,target.z-p.z]);
   const right=Math.hypot(forward[0],forward[2])<1e-6
