@@ -170,7 +170,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     const objectHolder=new THREE.Group();objectHolder.position.set(p.x,9,p.z);
     scene.add(objectHolder);slotObjects[slot]=objectHolder;
   }
-  const binPosition={x:330,y:0,z:194};
+  const binPosition={x:310,y:0,z:170};
   const binGroup=new THREE.Group();
   binGroup.position.set(binPosition.x,0,binPosition.z);
   scene.add(binGroup);
