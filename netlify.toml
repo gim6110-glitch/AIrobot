@@ -1,5 +1,6 @@
 [build]
-  publish = "."
+  publish = "dist"
+  command = "npm run build"
   functions = "netlify/functions"
 
 [functions]
@@ -16,3 +17,8 @@
   for = "/.netlify/functions/*"
   [headers.values]
     Cache-Control = "no-store"
+
+[[redirects]]
+  from = "/api/intent"
+  to = "/.netlify/functions/intent"
+  status = 200
