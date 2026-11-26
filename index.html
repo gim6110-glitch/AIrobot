@@ -82,7 +82,7 @@
         </svg>
       </div>
       <div class="lab-footer">
-        <div><strong>작업대 A·B·C</strong><span>각 칸은 물체 종류가 아닌 자리 이름입니다.</span></div>
+        <div><strong>작업대 A·B·C</strong><span>각 칸은 물체 종류가 아닌 자리 이름입니다. <span id="binSummary">보관함 비어 있음</span></span></div>
         <button id="resetSim" class="btn subtle" type="button">작업대 초기화</button>
       </div>
     </section>
@@ -114,7 +114,7 @@
         <div id="boardReach" class="predictions">카메라 기준점을 지정하면 mm 단위 거리와 참고 모델의 도달 가능성을 표시합니다. 이 결과만으로 실제 관절을 작동하지 않습니다.</div>
         <p class="hint">카메라 왜곡이 크거나 A4와 물체가 같은 평면에 없으면 오차가 생깁니다. 서보 방향과 안전 범위는 실물 확인이 필요합니다.</p>
       </details>
-      <label class="checkline"><input type="checkbox" id="visionConfirmed"/> <span><strong>직접 확인 완료</strong> — 화면의 표식과 실제 작업대의 A·B·C 위치가 일치합니다.</span></label>
+      <label class="checkline"><input type="checkbox" id="visionConfirmed"/> <span><strong>직접 확인 완료</strong> — 화면에 표시된 A·B·C 및 보관함 물체의 실제 위치를 확인했습니다.</span></label>
     </section>
 
     <section class="panel activity">
@@ -128,12 +128,12 @@
     <section class="panel chat">
       <div class="panel-title"><div><span class="kicker">AI INSTRUCTION</span><h2>한국어 채팅으로 조작</h2></div></div>
       <div class="messages" id="messages" aria-live="polite">
-        <div class="bubble assistant">안녕하세요! “삼각형을 보관함에 넣어 줘”처럼 말씀해 주세요. 해석 후 반드시 사람이 승인해야 움직입니다.</div>
+        <div class="bubble assistant">안녕하세요! “삼각형을 보관함에 넣어 줘” 또는 “보관함에서 삼각형을 원래 자리로 돌려놔”라고 입력하세요. 해석 후 반드시 사람이 승인해야 움직입니다.</div>
       </div>
       <label class="field-label" for="aiMode">명령 해석 방식</label>
-      <select id="aiMode"><option value="rule">규칙 기반 체험 (AI 모델 아님)</option><option value="llm">Netlify LLM 연결 (API 설정 필요)</option></select>
+      <select id="aiMode"><option value="rule">규칙 기반 체험 (AI 모델 아님)</option><option value="llm">LLM 연결 (API 설정 필요)</option></select>
       <form id="chatForm" class="chat-form"><input id="chatInput" maxlength="240" autocomplete="off" placeholder="예: B칸의 삼각형을 보관함에 넣어 줘" required/><button type="submit" class="btn primary">해석하기</button></form>
-      <div class="examples"><button type="button" data-example="삼각형을 보관함에 넣어 줘">삼각형 옮기기</button><button type="button" data-example="A칸 물체를 보관함에 넣어 줘">A칸 옮기기</button><button type="button" data-example="아무거나 집어 줘">모호한 명령 시험</button></div>
+      <div class="examples"><button type="button" data-example="삼각형을 보관함에 넣어 줘">삼각형 옮기기</button><button type="button" data-example="A칸 물체를 보관함에 넣어 줘">A칸 옮기기</button><button type="button" data-example="보관함에서 삼각형을 원래 자리로 돌려놔">삼각형 제자리로</button><button type="button" data-example="보관함에서 원래 자리로 돌려놔">보관함에서 되돌리기</button><button type="button" data-example="아무거나 집어 줘">모호한 명령 시험</button></div>
       <div id="proposal" class="proposal hidden">
         <div class="proposal-title">실행 후보 · 사람 검증 필수</div>
         <p id="proposalText"></p>
