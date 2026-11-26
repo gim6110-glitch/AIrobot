@@ -59,7 +59,7 @@ export default async function handler(req,res) {
         messages:[
           {role:"system",content:
             "Return ONLY a JSON object with keys kind,shape,source,target,explanation. "+
-            "kind: 'pick_place' (slot→bin), 'return_place' (bin→slot), or 'unclear'. shape: circle,triangle,cross or null. "+
+            "kind: 'pick_place' (slot→bin), 'return_place' (bin→slot), or 'unclear'. shape: circle,triangle,cross,star or null. "+
             "For pick_place, source A/B/C or null and target BIN. For return_place, source BIN and target ORIGINAL or A/B/C. "+
             "For reverse commands such as '보관함에서 삼각형을 원래 자리로 돌려놔', return kind='return_place', shape='triangle', source='BIN', target='ORIGINAL'. Do not invent object locations. Ambiguous commands return 'unclear'. "+
             "Never output servo angles, scripts, coordinates, or arbitrary commands. "+
