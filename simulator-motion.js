@@ -1,4 +1,4 @@
-import { binItemOffset } from "./camera-layout.js";
+import { binItemOffset,SLOT_CENTERS,BIN_CENTER,ITEM_ORIGIN_BELOW_TIP_MM } from "./camera-layout.js";
 /**
  * Visual-only 2D arm waypoints.
  * Does NOT calculate actual Mk2 inverse kinematics or collision clearance.
@@ -14,12 +14,16 @@ export const SIM_WAYPOINTS = Object.freeze({
  * Tabletop 3D demonstration positions in millimetres relative to the base.
  * These are visual layout coordinates, NOT calibrated real pick poses.
  */
+const pickY=9+ITEM_ORIGIN_BELOW_TIP_MM;
+const binY=12+ITEM_ORIGIN_BELOW_TIP_MM;
+const slotPoint=(slot,height)=>({x:SLOT_CENTERS[slot].x,y:height,z:SLOT_CENTERS[slot].z});
 export const WORLD_WAYPOINTS=Object.freeze({
   HOME:{x:195,y:204,z:0},
-  HOVER_A:{x:240,y:122,z:-115},PICK_A:{x:240,y:34,z:-115},
-  HOVER_B:{x:267,y:122,z:0},PICK_B:{x:267,y:34,z:0},
-  HOVER_C:{x:240,y:122,z:115},PICK_C:{x:240,y:34,z:115},
-  HOVER_BIN:{x:310,y:135,z:170},PLACE_BIN:{x:310,y:37,z:170}
+  HOVER_A:slotPoint("A",122),PICK_A:slotPoint("A",pickY),
+  HOVER_B:slotPoint("B",122),PICK_B:slotPoint("B",pickY),
+  HOVER_C:slotPoint("C",122),PICK_C:slotPoint("C",pickY),
+  HOVER_BIN:{x:BIN_CENTER.x,y:135,z:BIN_CENTER.z},
+  PLACE_BIN:{x:BIN_CENTER.x,y:binY,z:BIN_CENTER.z}
 });
 export function worldTargetForStep(label,{binIndex=0}={}){
   const key=String(label||"").split(" ")[0];
