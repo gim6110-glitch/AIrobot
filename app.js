@@ -6,7 +6,7 @@ import {
 import { mountCameraWorkspace } from "./guided-setup.js";
 import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS, WORLD_WAYPOINTS, worldTargetForStep, lerpWorld } from "./simulator-motion.js";
 import { create3DScene } from "./three-scene.js";
-import { CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,cameraLensPosition,BIN_ITEM_CAPACITY } from "./camera-layout.js";
+import { CAMERA_DEFAULT,normalizeCameraConfig,cameraPosition,cameraLensPosition,cameraFitAssessment,BIN_ITEM_CAPACITY } from "./camera-layout.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -28,7 +28,7 @@ const state = {
   decoder:new TextDecoder(), rx:"", waiters:[], heartbeat:null, pump:null,
   stream:null, model:null, modelUrl:"", calibration:{}, lastSentAngles:null, cameraLabels:[]
 };
-const HISTORY_KEY="davibot-log-v1", CAL_KEY="davibot-poses-v1", CAMERA_KEY="davibot-camera-mount-v1";
+const HISTORY_KEY="davibot-log-v1", CAL_KEY="davibot-poses-v1", CAMERA_KEY="davibot-camera-mount-v2";
 
 function log(message, type="info") {
   const time = new Date().toLocaleTimeString("ko-KR",{hour12:false});
@@ -79,11 +79,16 @@ function readCameraControls(){
 function cameraCoordinatesText(c){
   const p=cameraPosition(c),lens=cameraLensPosition(c);
   const offsetCm=n=>(n>=0?"+":"")+(n/10).toFixed(1)+" cm";
-  return "3D 카메라 중심: 베이스 기준 정면 X "+(p.x/10).toFixed(1)+
+  const fit=cameraFitAssessment(c);
+  const report=fit.aligned?"작업판과 촬영 범위가 일치합니다.":
+    !fit.objectsCovered?"주의: 물체나 보관함 일부가 촬영 범위 밖입니다.":
+    !fit.boardCovered?"주의: 작업판 일부가 촬영 범위 밖입니다.":
+    "주의: 촬영 범위가 작업판보다 넓습니다. 높이와 화각을 조정하세요.";
+  return "카메라 몸체: 베이스 기준 정면 X "+(p.x/10).toFixed(1)+
     " cm, 높이 "+(p.y/10).toFixed(1)+" cm, 좌우 Z "+(p.z/10).toFixed(1)+
     " cm · 렌즈 높이 약 "+(lens.y/10).toFixed(1)+" cm · 오프셋 ("+
     offsetCm(c.offsetXmm)+", "+offsetCm(c.offsetZmm)+"). "+
-    "독립 거치대에 단단히 고정하고 A·B·C 및 보관함이 함께 보이는지 웹캠 영상으로 확인하세요.";
+    report+" 웹캠의 실제 화각과 16:9 지원 여부는 현장에서 확인하세요.";
 }
 function setCameraControls(c,{save=true}={}){
   const conf=normalizeCameraConfig(c);
