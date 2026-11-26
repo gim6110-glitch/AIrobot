@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#092c44" />
+  <title>다비봇 | AI 로봇팔 실험실</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">DB<span>●</span></div>
+    <div><strong>다비봇</strong><small>AI · MECHANICAL DESIGN LAB</small></div>
+  </div>
+  <div class="top-actions">
+    <span id="modeBadge" class="state-tag"><span class="dot"></span>시뮬레이션</span>
+    <a href="https://github.com/gim6110-glitch/AIrobot" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+  </div>
+</header>
+<section class="hero">
+  <div class="eyebrow">2027학년도 기계 × AI 융합수업 실습 도구</div>
+  <h1>AI는 물체를 찾았다.<br/><em>로봇팔은 끝까지 옮길 수 있을까?</em></h1>
+  <p>채팅으로 작업을 요청하고, A·B·C 표식을 확인하고, 로봇팔의 움직임과 실패 원인을 검증해 보세요.</p>
+  <div class="hero-steps"><span><b>01</b> 명령 해석</span><i></i><span><b>02</b> 인식 결과 확인</span><i></i><span><b>03</b> 사람 승인</span><i></i><span><b>04</b> 시뮬레이션 / 실물</span></div>
+</section>
+<main>
+  <div class="stack">
+    <section class="panel lab">
+      <div class="panel-title"><div><span class="kicker">WORKSPACE</span><h2>로봇팔 작업대</h2></div>
+        <div class="switch-row"><label for="runMode">실행 모드</label><select id="runMode" aria-label="실행 모드">
+        <option value="sim">시뮬레이터</option><option value="real">실제 Arduino</option></select></div>
+      </div>
+      <div class="scene-wrap">
+        <svg id="scene" viewBox="0 0 820 465" role="img" aria-label="EEZYbotARM Mk2 형상을 참고한 개념적인 2차원 로봇팔 시뮬레이터. A 원, B 삼각형, C 십자와 보관함 표시">
+          <defs>
+            <linearGradient id="surface" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f0f6f8"/><stop offset="1" stop-color="#dbe7ed"/></linearGradient>
+            <linearGradient id="armColor" x1="0" x2="1"><stop offset="0" stop-color="#e95524"/><stop offset="1" stop-color="#a63815"/></linearGradient>
+            <filter id="shadow" x="-30%" y="-50%" width="160%" height="200%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-opacity=".16"/></filter>
+          </defs>
+          <rect x="0" y="0" width="820" height="465" rx="18" fill="#eef5f7"/>
+          <path d="M30 80 L780 80 L800 418 L24 418 Z" fill="url(#surface)" stroke="#b6c9d3" stroke-width="2"/>
+          <path d="M158 108 H734 V399 H158 Z" fill="none" stroke="#e6ad38" stroke-width="8" stroke-linejoin="round"/>
+          <g id="slotA" transform="translate(303 340)" class="slot">
+           <rect x="-56" y="-38" width="112" height="93" rx="12" fill="#fff" stroke="#b9cbd4"/>
+           <g id="objectA"><circle cx="0" cy="0" r="25" fill="#e1e7ea" stroke="#8199a6" stroke-width="3"/><circle cx="0" cy="0" r="12" fill="none" stroke="#193c54" stroke-width="5"/></g>
+           <text x="0" y="82" text-anchor="middle">A</text>
+          </g>
+          <g id="slotB" transform="translate(456 340)" class="slot">
+           <rect x="-56" y="-38" width="112" height="93" rx="12" fill="#e9f8f3" stroke="#23a48b" stroke-width="3"/>
+           <g id="objectB"><circle cx="0" cy="0" r="25" fill="#e1e7ea" stroke="#8199a6" stroke-width="3"/><path d="M0 -16 L17 13 H-17 Z" fill="#14384f"/></g>
+           <text x="0" y="82" text-anchor="middle">B</text>
+          </g>
+          <g id="slotC" transform="translate(610 340)" class="slot">
+           <rect x="-56" y="-38" width="112" height="93" rx="12" fill="#fff" stroke="#b9cbd4"/>
+           <g id="objectC"><circle cx="0" cy="0" r="25" fill="#e1e7ea" stroke="#8199a6" stroke-width="3"/><path d="M-5 -16 H5 V-5 H17 V5 H5 V16 H-5 V5 H-17 V-5 H-5Z" fill="#14384f"/></g>
+           <text x="0" y="82" text-anchor="middle">C</text>
+          </g>
+          <rect x="607" y="139" width="148" height="111" rx="14" fill="#1b435e" filter="url(#shadow)"/>
+          <path d="M620 150H742V230H620Z" fill="#2c536d" stroke="#7692a4" stroke-width="3"/>
+          <text x="681" y="272" class="binlabel" text-anchor="middle">보관함</text>
+          <g id="binItems"></g>
+          <g id="robot">
+            <ellipse cx="145" cy="324" rx="106" ry="31" fill="#4d6775" opacity=".28"/>
+            <ellipse cx="145" cy="306" rx="90" ry="30" fill="#253b48"/>
+            <ellipse cx="145" cy="297" rx="65" ry="24" fill="#cb4a20"/>
+            <rect x="107" y="239" width="76" height="65" rx="17" fill="#d94b1f" stroke="#a33518" stroke-width="4"/>
+            <g id="armLinks">
+              <path id="arm1Shadow" d="" stroke="#8c2d1b" stroke-width="31" fill="none" stroke-linecap="round"/>
+              <path id="arm1" d="" stroke="url(#armColor)" stroke-width="24" fill="none" stroke-linecap="round"/>
+              <path id="arm2" d="" stroke="#ea5b25" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path id="armBrace" d="" stroke="#8f2f1b" stroke-width="6" fill="none"/>
+              <circle id="armJoint" cx="300" cy="180" r="17" fill="#1c2d3c" stroke="#ee6332" stroke-width="5"/>
+              <g id="gripper"><rect x="-22" y="-10" width="44" height="20" rx="7" fill="#db4b24"/><path id="finger1" d="M-21 0 L-21 22 L-9 22" stroke="#db4b24" stroke-width="8" fill="none" stroke-linecap="round"/><path id="finger2" d="M21 0 L21 22 L9 22" stroke="#db4b24" stroke-width="8" fill="none" stroke-linecap="round"/></g>
+            </g>
+          </g>
+          <rect x="22" y="17" width="275" height="42" rx="10" fill="#fff" opacity=".96"/>
+          <circle id="sceneDot" cx="43" cy="38" r="6" fill="#1f9f84"/>
+          <text id="sceneStatus" x="61" y="44" font-size="16" font-weight="700" fill="#1b435e">대기 · 시뮬레이션</text>
+          <text x="26" y="445" font-size="13" fill="#546e7d">개념도 · 실제 EEZYbotARM 링크 길이·각도·좌표를 정확히 재현한 물리 시뮬레이터는 아닙니다.</text>
+        </svg>
+      </div>
+      <div class="lab-footer">
+        <div><strong>작업대 A·B·C</strong><span>각 칸은 물체 종류가 아닌 자리 이름입니다.</span></div>
+        <button id="resetSim" class="btn subtle" type="button">작업대 초기화</button>
+      </div>
+    </section>
+
+    <section class="panel sensors">
+      <div class="panel-title"><div><span class="kicker">VISION / VERIFICATION</span><h2>카메라 · 표식 확인</h2></div><span id="visionMode" class="microtag">수동 확인</span></div>
+      <p class="hint">기본 A=원, B=삼각형, C=십자입니다. 사진 분류 모델을 연결하기 전에는 사람이 직접 관찰한 값이며 AI 결과가 아닙니다.</p>
+      <div class="slot-editor">
+        <label>A칸<select id="markA"><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="cross">＋ 십자</option><option value="empty">비어 있음</option></select></label>
+        <label>B칸<select id="markB"><option value="triangle">△ 삼각형</option><option value="circle">◯ 원</option><option value="cross">＋ 십자</option><option value="empty">비어 있음</option></select></label>
+        <label>C칸<select id="markC"><option value="cross">＋ 십자</option><option value="circle">◯ 원</option><option value="triangle">△ 삼각형</option><option value="empty">비어 있음</option></select></label>
+      </div>
+      <details class="subpanel">
+        <summary>웹캠 및 학습된 이미지 모델 연결 <span>선택 사항</span></summary>
+        <p class="hint">카메라를 고정하고 A·B·C를 화면의 왼쪽·가운데·오른쪽에 맞춘 다음, 학습된 Teachable Machine 이미지 모델 URL을 입력하세요. 세 영역을 각각 분류합니다. 분류 결과는 반드시 실제 작업대와 비교하세요.</p>
+        <div class="camera-grid">
+          <div class="video-box"><video id="camera" autoplay muted playsinline aria-label="카메라 영상"></video><div class="camera-guide"><span>A</span><span>B</span><span>C</span></div></div>
+          <div class="camera-buttons"><button class="btn subtle" id="startCamera">카메라 켜기</button><button class="btn subtle" id="stopCamera">카메라 끄기</button><label for="modelUrl">Teachable Machine 모델 URL</label><input id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/..." /><button class="btn blue" id="loadModel">모델 불러오기</button><button class="btn primary" id="predict">A·B·C 사진 분류</button></div>
+        </div>
+        <div id="predictions" class="predictions">아직 AI 사진 분류 결과가 없습니다.</div>
+      </details>
+      <label class="checkline"><input type="checkbox" id="visionConfirmed"/> <span><strong>직접 확인 완료</strong> — 화면의 표식과 실제 작업대의 A·B·C 위치가 일치합니다.</span></label>
+    </section>
+
+    <section class="panel activity">
+      <div class="panel-title"><div><span class="kicker">OBSERVATION LOG</span><h2>검증 · 실행 기록</h2></div><button class="btn subtle" id="clearLog">기록 지우기</button></div>
+      <div id="log" class="log" role="log" aria-live="polite"></div>
+      <p class="hint">Arduino에서 보내는 DONE은 서보 명령 완료일 뿐, 실제 물체를 집었다는 증거는 아닙니다.</p>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel chat">
+      <div class="panel-title"><div><span class="kicker">AI INSTRUCTION</span><h2>한국어 채팅으로 조작</h2></div></div>
+      <div class="messages" id="messages" aria-live="polite">
+        <div class="bubble assistant">안녕하세요! “삼각형을 보관함에 넣어 줘”처럼 말씀해 주세요. 해석 후 반드시 사람이 승인해야 움직입니다.</div>
+      </div>
+      <label class="field-label" for="aiMode">명령 해석 방식</label>
+      <select id="aiMode"><option value="rule">규칙 기반 체험 (AI 모델 아님)</option><option value="llm">Netlify LLM 연결 (API 설정 필요)</option></select>
+      <form id="chatForm" class="chat-form"><input id="chatInput" maxlength="240" autocomplete="off" placeholder="예: B칸의 삼각형을 보관함에 넣어 줘" required/><button type="submit" class="btn primary">해석하기</button></form>
+      <div class="examples"><button type="button" data-example="삼각형을 보관함에 넣어 줘">삼각형 옮기기</button><button type="button" data-example="A칸 물체를 보관함에 넣어 줘">A칸 옮기기</button><button type="button" data-example="아무거나 집어 줘">모호한 명령 시험</button></div>
+      <div id="proposal" class="proposal hidden">
+        <div class="proposal-title">실행 후보 · 사람 검증 필수</div>
+        <p id="proposalText"></p>
+        <label class="checkline"><input id="confirmAction" type="checkbox"/> 화면의 대상·위치·로봇 주변 안전을 확인했습니다.</label>
+        <button id="execute" class="btn primary wide" type="button">확인한 작업 실행</button>
+      </div>
+    </section>
+
+    <section class="panel manual">
+      <div class="panel-title"><div><span class="kicker">JOINT CONTROL</span><h2>키보드 · 수동 조작</h2></div></div>
+      <p class="hint">화면의 관절 각도는 개념 표현입니다. 실물 연결 시 각도 범위를 먼저 확인하고 무부하로 한 축씩 움직이세요.</p>
+      <div id="sliders"></div>
+      <div class="manual-row"><button id="sendPose" class="btn blue">관절 각도 전송</button><button id="home" class="btn subtle">HOME 자세</button></div>
+      <p class="hint">키보드: 1~4로 관절 선택, ←/→로 ±2°, Space로 소프트웨어 정지 (텍스트 입력 중 제외)</p>
+    </section>
+
+    <section class="panel connection">
+      <div class="panel-title"><div><span class="kicker">PHYSICAL ROBOT</span><h2>실제 Arduino 연결</h2></div><span id="connectionBadge" class="microtag">연결 안 됨</span></div>
+      <div class="connection-buttons">
+        <button id="connect" class="btn blue">USB 연결</button><button id="disconnect" class="btn subtle">연결 해제</button>
+        <button id="arm" class="btn warning">실물 제어 허용</button><button id="disarm" class="btn subtle">제어 잠금</button>
+      </div>
+      <button id="stop" type="button" class="btn danger wide">■ 동작 중지 / 출력 비활성화</button>
+      <p class="alert">주의: 소프트웨어 정지는 실제 비상전원 차단 장치가 아닙니다. 정지 시 팔이 처질 수 있습니다. 반드시 별도 물리적 전원 차단과 받침을 준비하세요.</p>
+      <div class="tiny">Chrome / Edge 데스크톱 · HTTPS · USB 포트 권한 허용 · 115200 baud</div>
+    </section>
+
+    <section class="panel calibrate">
+      <div class="panel-title"><div><span class="kicker">PHYSICAL CALIBRATION</span><h2>실물 위치 보정</h2></div></div>
+      <p class="hint">아래 위치 각도는 장치마다 다릅니다. 보정 전 실물 자동 집기는 차단됩니다. 현재 수동 각도를 해당 위치로 저장하세요. 저장값은 이 브라우저에만 보관됩니다.</p>
+      <div class="calibration-row"><select id="poseName"><option value="HOME">HOME · 기본자세</option><option value="HOVER_A">HOVER_A · A 위</option><option value="PICK_A">PICK_A · A 집기</option><option value="HOVER_B">HOVER_B · B 위</option><option value="PICK_B">PICK_B · B 집기</option><option value="HOVER_C">HOVER_C · C 위</option><option value="PICK_C">PICK_C · C 집기</option><option value="HOVER_BIN">HOVER_BIN · 보관함 위</option><option value="PLACE_BIN">PLACE_BIN · 보관함 놓기</option></select><button id="savePose" class="btn blue">현재 각도 저장</button><button id="loadPose" class="btn subtle">불러오기</button></div>
+      <div id="poseProgress" class="progress-text">위치 0 / 9 보정됨</div>
+      <div class="gripcal"><label>집게 열림 각도<input type="number" id="openGrip" value="75" min="0" max="180"/></label><label>집게 닫힘 각도<input type="number" id="closeGrip" value="110" min="0" max="180"/></label></div>
+      <p class="hint">집게 각도는 예시값입니다. 실제 닫힘 힘과 동작 방향을 개별적으로 확인하세요.</p>
+      <button id="clearCalibration" class="btn subtle wide">저장된 보정 지우기</button>
+    </section>
+  </div>
+</main>
+<section class="bottom">
+  <div><strong>교사 실습 안내</strong><p>시뮬레이션은 즉시 이용할 수 있습니다. 실제 장비는 Arduino 스케치 업로드, 서보 전원 및 물리적 안전장치 점검, 관절·위치 보정이 필요합니다. 자동 성공 여부는 실물 시험으로만 판단합니다.</p></div>
+  <a class="btn blue" href="https://github.com/gim6110-glitch/AIrobot#readme" target="_blank" rel="noopener">설치 · 배선 문서 ↗</a>
+</section>
+<footer>TEAM DAVIBOT · AIROBOT CLASSROOM EXPERIMENT · SIMULATION ≠ PHYSICAL VALIDATION</footer>
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
