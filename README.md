@@ -1,6 +1,8 @@
 # 다비봇 AIrobot · 로봇팔 AI 융합 실습실
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/gim6110-glitch/AIrobot)
+**권장 호스팅: Vercel** — Netlify 팀의 production deploy가 크레딧 제한으로 정지되어 Vercel 배포 구성을 추가했습니다. 원본 GitHub 저장소는 변경 없이 그대로 연결하여 자동 배포할 수 있습니다.
+
+**[Vercel에서 GitHub 원본 가져오기](https://vercel.com/new)** · [GitHub 저장소](https://github.com/gim6110-glitch/AIrobot)
 
 
 본 프로젝트는 EEZYbotARM Mk2를 바탕으로 고등학생이 로봇팔을 만들고 제어하며, AI가 인식한 결과를 검증하고 집게를 개선하는 실습을 지원합니다.
@@ -36,7 +38,30 @@
 
 이 프로젝트가 사용하는 참고 기구학 치수는 L1=92mm, L2=135mm, L3=147mm, L4=87mm입니다. [easyEEZYbotARM Mk2](https://github.com/meisben/easyEEZYbotARM)의 실험적 참고치이며 실제 인쇄 치수·서보 연결 방향을 보증하지 않습니다. 참고 코드와 학습자료는 원저작권과 라이선스를 확인해 사용하세요.
 
-## 1. Netlify 배포
+## Vercel 배포 (권장)
+
+1. [Vercel → New Project](https://vercel.com/new)를 열고 GitHub 권한을 연결합니다.
+2. 기존 저장소 **gim6110-glitch/AIrobot**를 찾아 **Import**합니다. **새 저장소를 복제하는 Deploy Button이 아니라 원본 GitHub 저장소를 직접 선택**하세요.
+3. Project Name은 \`airobot\` 또는 \`davibot-airobot\`으로 지정합니다. Root Directory는 기본 \`./\` 입니다.
+4. \`vercel.json\`에 이미 설정한 **Build Command \`npm run build\`**, **Output Directory \`dist\`**가 적용되는지 확인하고 Deploy를 누릅니다. Framework Preset은 **Other**입니다.
+5. 배포 완료된 HTTPS \`*.vercel.app\` 주소에서 시뮬레이터와 **규칙 기반 채팅**을 바로 사용합니다.
+6. 실제 LLM 채팅을 사용하려면 Vercel → Project → Settings → Environment Variables에 \`LLM_API_KEY\`, \`LLM_MODEL\`, 필요 시 \`LLM_BASE_URL\`을 입력하고 재배포합니다. 설정하지 않으면 비용 없이 규칙 기반 체험이 가능합니다. **API 키를 GitHub에 올리지 마세요.**
+7. 실물 Arduino는 **USB로 연결된 PC에서** 해당 Vercel 사이트를 Chrome/Edge로 열고 포트 권한을 승인해야 합니다. 다른 컴퓨터/휴대폰에서 원격으로 바로 구동하는 구조가 아닙니다.
+
+### Vercel과 Netlify 기능 대응
+
+| 구분 | Vercel | Netlify |
+|---|---|---|
+| 정적 웹앱 | \`dist/\` 정적 파일 | \`dist/\` 정적 파일 |
+| 한국어 AI 채팅 API | \`/api/intent\` → \`api/intent.js\` | \`/api/intent\` → Netlify rewrite → \`netlify/functions/intent.mjs\` |
+| API 키 저장 | Vercel Environment Variables | Netlify Environment Variables |
+| USB Arduino | 브라우저 Web Serial 동일 | 브라우저 Web Serial 동일 |
+| 일반 웹캠 시뮬레이터 | 동일 | 동일 |
+| 배포 자동화 | GitHub 연결 이후 main 푸시 자동 배포 | 현재 계정 production 배포 제한 |
+
+**배포 및 실물 검증 상태는 구분해야 합니다:** GitHub Actions 코드 테스트와 Arduino 펌웨어 컴파일 성공은 실제 Arduino 연결 및 로봇팔 집기 동작 성공을 의미하지 않습니다. 실제 서보 방향, 위치 보정, 안전 차단 장치 검증은 반드시 현장에서 이루어져야 합니다.
+
+## Netlify 배포 (대안·크레딧 복구 시)
 
 1. Netlify의 Add new project → Import an existing project → GitHub를 선택합니다.
 2. gim6110-glitch/AIrobot 저장소, main 브랜치를 선택합니다.
@@ -59,7 +84,7 @@ Netlify → Site configuration → Environment variables에서 다음 환경변�
 
 사용자 컴퓨터에서 실행하는 Ollama는 Netlify 서버가 자동으로 접근할 수 없습니다. 별도 로컬 브리지가 없으므로 이 버전은 OpenAI 호환 클라우드 API를 사용합니다.
 
-## 2. Arduino UNO R3 · PCA9685 예시 배선
+## Arduino UNO R3 · PCA9685 예시 배선
 
 실제 부품의 허용 전압, 전류, 커넥터 표기를 우선 확인하세요. 아래는 **예시**입니다.
 
