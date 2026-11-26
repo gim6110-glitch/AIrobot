@@ -113,7 +113,10 @@ const pointInside=(poly,p)=>{
   return true;
 };
 export function cameraFitAssessment(config=CAMERA_DEFAULT){
-  const quad=footprintCorners(config);
+  let quad;
+  try{quad=footprintCorners(config);}
+  catch(error){return {boardCovered:false,objectsCovered:false,areaRatio:Infinity,
+    aligned:false,reason:error.message};}
   const rect=(x,z,widthX,depthZ)=>[
     {x:x-widthX/2,z:z-depthZ/2},{x:x+widthX/2,z:z-depthZ/2},
     {x:x+widthX/2,z:z+depthZ/2},{x:x-widthX/2,z:z+depthZ/2}
