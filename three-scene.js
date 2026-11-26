@@ -210,8 +210,9 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   block(binGroup,bx,54,wall,COLORS.navy,0,31,(bz-wall)/2);
   block(binGroup,wall,54,bz,COLORS.navy,-(bx-wall)/2,31,0);
   block(binGroup,wall,54,bz,COLORS.navy,(bx-wall)/2,31,0);
-  const binTitle=textSprite(scene,"보관함","#163f59",0.85);
-  binTitle.position.set(binPosition.x,98,binPosition.z);
+  // Keep the bin label outside the container so it never hides its contents.
+  const binTitle=textSprite(scene,"보관함","#163f59",0.65);
+  binTitle.position.set(binPosition.x,16,binPosition.z+69);
   const binItemsGroup=new THREE.Group();binItemsGroup.position.set(binPosition.x,12,binPosition.z);
   scene.add(binItemsGroup);
 
@@ -264,8 +265,10 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     cameraAssembly.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),opticalDirection);
     cameraLabel.position.set(pos.x,pos.y+36,pos.z);
     disposeLines(footprintLines);
-    if(mountedConfig.showFootprint){
-      const corners=footprintCorners(mountedConfig,CAMERA_ASPECT);
+    let corners=null;
+    try{corners=footprintCorners(mountedConfig,CAMERA_ASPECT);}
+    catch{onWarning("카메라 화각·기울기가 작업대 평면을 벗어납니다. 권장 위치로 되돌리세요.");}
+    if(mountedConfig.showFootprint&&corners){
       segmentLine(cameraLensPosition(mountedConfig),
         {x:CAMERA_TARGET.x,y:5,z:CAMERA_TARGET.z},COLORS.amber,0.65);
       for(let i=0;i<4;i++){
@@ -274,8 +277,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
       }
     }
     if(isMountedCameraView)viewFromMountedCamera();
-    return {position:pos,footprint:mountedConfig.showFootprint?
-      footprintCorners(mountedConfig,CAMERA_ASPECT):null};
+    return {position:pos,footprint:mountedConfig.showFootprint?corners:null};
   }
   function viewFromMountedCamera(){
     isMountedCameraView=true;
