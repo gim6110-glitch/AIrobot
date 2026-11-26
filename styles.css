@@ -33,9 +33,11 @@ input:focus,select:focus,button:focus-visible{outline:3px solid #97d9cf;outline-
 .switch-row select{font-weight:700;font-size:13px}
 .scene-wrap{overflow:hidden;border-radius:13px;background:#e7f0f5;border:1px solid #d5e4eb}
 #scene{width:100%;height:auto;display:block}
-#scene text{font-family:inherit;fill:#1b4055;font-weight:800;font-size:25px}
-#scene text.binlabel{font-size:17px;fill:#25495f}
-#scene #sceneStatus{font-size:16px}
+#scene text{font-family:inherit;fill:#1b4055}
+#scene .slot > text{font-size:24px;font-weight:800}
+#scene text.binlabel{font-size:17px;font-weight:800;fill:#25495f}
+#scene #sceneStatus{font-size:16px;font-weight:700}
+#scene #sceneFootnote{font-size:12px;font-weight:500;fill:#546e7d}
 .lab-footer{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:15px}
 .lab-footer strong{display:block;font-size:14px}.lab-footer span{font-size:12px;color:#667e8b}
 .btn{border-radius:9px;border:1px solid transparent;padding:10px 15px;font-size:13px;font-weight:800;white-space:normal;min-height:42px;line-height:1.4;transition:transform .1s,background .15s}
