@@ -1,0 +1,19 @@
+name: Arduino Uno firmware compile
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  compile-uno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install board core and servo driver dependencies
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          arduino-cli lib install "Adafruit BusIO"
+          arduino-cli lib install "Adafruit PWM Servo Driver Library"
+      - name: Build Arduino Uno sketch
+        run: arduino-cli compile --fqbn arduino:avr:uno arduino/AIrobot_PCA9685
