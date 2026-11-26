@@ -54,8 +54,9 @@ export function footprintCorners(config=CAMERA_DEFAULT,aspect=16/9){
   const p=cameraPosition(cfg),target=CAMERA_TARGET;
   const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};
   const forward=norm([target.x-p.x,target.y-p.y,target.z-p.z]);
-  const right=norm([-forward[2],0,forward[0]]);
-  const up=[-right[2]*forward[1],right[0]*forward[2]-right[2]*forward[0],right[0]*forward[1]];
+  const right=Math.hypot(forward[0],forward[2])<1e-6
+    ?[1,0,0]:norm([-forward[2],0,forward[0]]);
+  const up=[-right[2]*forward[1],right[2]*forward[0]-right[0]*forward[2],right[0]*forward[1]];
   // right cross forward is up for a camera directed down; normalize it.
   const U=norm(up);
   const tanV=Math.tan(cfg.fovDeg*Math.PI/360),tanH=tanV*aspect;
