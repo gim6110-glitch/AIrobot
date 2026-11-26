@@ -4,7 +4,7 @@ import path from "node:path";
 
 const root=fileURLToPath(new URL("../",import.meta.url));
 const dist=path.join(root,"dist");
-const assets=["index.html","styles.css","app.js","protocol.js","kinematics.js","workplane.js","guided-setup.js"];
+const assets=["index.html","styles.css","app.js","protocol.js","kinematics.js","workplane.js","guided-setup.js","simulator-motion.js"];
 
 await rm(dist,{recursive:true,force:true});
 await mkdir(dist,{recursive:true});
