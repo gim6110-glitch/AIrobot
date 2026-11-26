@@ -11,6 +11,12 @@ export function validAngles(angles) {
     angles.every(v => Number.isInteger(v) && v >= 0 && v <= 180);
 }
 
+export function axisLine(index, degree) {
+  if(!Number.isInteger(index)||index<0||index>3||!Number.isInteger(degree)||degree<0||degree>180)
+    throw new Error("축 번호(0~3) 또는 각도(0~180)가 잘못되었습니다.");
+  return "AXIS,"+index+","+degree+"\n";
+}
+
 export function poseLine(angles) {
   if (!validAngles(angles)) throw new Error("각 관절은 0~180 사이의 정수여야 합니다.");
   return "POSE," + angles.join(",") + "\n";
