@@ -131,3 +131,17 @@ footer{text-align:center;font-size:10px;color:#7893a0;padding:19px 10px 30px;let
 #scene2dPanel{min-height:auto}
 .camera-reset{padding:8px 12px;font-size:12px}
 @media(max-width:650px){.scene3d-host{height:370px;min-height:330px}.scene3d-panel{min-height:350px}.scene3d-hint{font-size:10px}.view-tab{padding:8px 9px}}
+
+
+/* Independent overhead camera mount controls */
+.camera-mount-settings{border:1px solid #d1e4e7;background:#f6fafb;border-radius:12px;margin:13px 0;padding:14px}
+.camera-mount-settings summary{cursor:pointer;font-weight:800;font-size:13px;color:#185066}
+.camera-mount-settings summary span{font-weight:500;color:#648292;font-size:11px;margin-left:6px}
+.camera-mount-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px 18px;margin:15px 0}
+.camera-mount-grid label{font-size:12px;font-weight:700;line-height:1.65;color:#315d70}
+.camera-mount-grid output{display:inline-block;float:right;color:#07827a;font-weight:800}
+.camera-mount-grid input{display:block;width:100%;padding:0;margin:7px 0 0;accent-color:#0d8581}
+.camera-mount-check{font-size:12px;color:#315d70;display:flex;gap:9px;align-items:center}
+.camera-mount-check input{accent-color:#0d8581}
+.camera-mount-settings .manual-row{margin-top:12px}
+@media(max-width:650px){.camera-mount-grid{grid-template-columns:1fr}.camera-mount-settings summary span{display:block;margin:2px 0 0}}
