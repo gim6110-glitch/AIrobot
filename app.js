@@ -4,6 +4,7 @@ import {
   buildPickSequence, validAngles, poseLine, axisLine, messageLine, serialWhitelist
 } from "./protocol.js";
 import { mountCameraWorkspace } from "./guided-setup.js";
+import { needsPhysicalVerification, targetForStep, visualArmGeometry, manualVisualTip, SIM_WAYPOINTS } from "./simulator-motion.js";
 
 const $ = id => document.getElementById(id);
 const labels = ["베이스", "어깨", "팔꿈치", "집게"];
@@ -16,7 +17,7 @@ const SIM_POSES = {
   HOVER_BIN:[151,90,82,75], PLACE_BIN:[151,112,104,75]
 };
 const state = {
-  mode:"sim", angles:[...DEFAULT_ANGLES], observations:{ A:"circle", B:"triangle", C:"cross" },
+  mode:"sim", angles:[...DEFAULT_ANGLES], simTip:{...SIM_WAYPOINTS.HOME}, observations:{ A:"circle", B:"triangle", C:"cross" },
   sourceBySlot:{A:"manual",B:"manual",C:"manual"}, predicted:{}, boardModel:null,
   transferred:[], running:false, cancelled:false, stopped:false,
   pending:null, connected:false, armed:false, port:null, writer:null, reader:null,
@@ -43,13 +44,28 @@ function status(text) { $("sceneStatus").textContent=text; }
 function sleep(ms){return new Promise(ok=>setTimeout(ok,ms));}
 function notifyError(err){ const message=err instanceof Error?err.message:String(err);log(message,"error");say("실행 보류: "+message);status("실행 보류");}
 function setRunMode() {
+  if(state.running){
+    $("runMode").value=state.mode;
+    log("동작 중에는 시뮬레이션/실물 모드를 변경할 수 없습니다.","warning");
+    return;
+  }
   state.mode=$("runMode").value;
+  state.simTip=state.mode==="sim"?{...SIM_WAYPOINTS.HOME}:null;
+  renderRobot();
   $("modeBadge").innerHTML='<span class="dot"></span>'+(state.mode==="real"?"실물 Arduino 모드":"시뮬레이션");
   if(state.mode==="real") log("실물 모드: USB 연결·보정·승인이 필요합니다.","warning");
   status(state.mode==="real"?"실물 모드 준비":"시뮬레이션 준비");
 }
 function resetObservations() {
+  if(state.running) {
+    log("진행 중인 동작을 중지한 후 작업대를 초기화해 주세요.","warning");
+    return;
+  }
   state.observations={A:"circle",B:"triangle",C:"cross"};
+  state.simTip={...SIM_WAYPOINTS.HOME};
+  state.angles=[...DEFAULT_ANGLES];
+  refreshSliders();
+  clearSimCarry();
   state.transferred=[];
   for(const slot of SLOTS){
     $("mark"+slot).value=state.observations[slot];
@@ -100,20 +116,28 @@ function transferObject(slot) {
   });
   $("visionConfirmed").checked=false;
 }
+function clearSimCarry(){
+  const previous=document.getElementById("simCarried");
+  if(previous)previous.remove();
+}
+function attachSimCarry(shape){
+  clearSimCarry();
+  const g=svgEl("g",{id:"simCarried",transform:"translate(0 28) scale(.42)"});
+  for(const c of iconForShape(shape))g.appendChild(c);
+  $("gripper").appendChild(g);
+}
 function renderRobot(angles=state.angles) {
-  // Schematic view only — not forward kinematics or collision detection.
-  const shoulder=({x:145,y:241});
-  const a1=(-77+(angles[1]-90)*0.48)*Math.PI/180;
-  const a2=(a1+(-18+(angles[2]-90)*0.55)*Math.PI/180);
-  const swing=(angles[0]-90)*.85;
-  const j={x:shoulder.x+164*Math.cos(a1)+swing,y:shoulder.y+164*Math.sin(a1)};
-  const end={x:j.x+138*Math.cos(a2),y:j.y+138*Math.sin(a2)};
-  const d1="M"+shoulder.x+" "+shoulder.y+" L"+j.x+" "+j.y;
-  const d2="M"+j.x+" "+j.y+" L"+end.x+" "+end.y;
-  $("arm1").setAttribute("d",d1);$("arm1Shadow").setAttribute("d",d1);
-  $("arm2").setAttribute("d",d2);$("armBrace").setAttribute("d","M"+(shoulder.x+8)+" "+(shoulder.y-20)+" L"+(j.x+8)+" "+(j.y-20));
-  $("armJoint").setAttribute("cx",j.x);$("armJoint").setAttribute("cy",j.y);
-  $("gripper").setAttribute("transform","translate("+end.x+" "+end.y+")");
+  // Illustration only. This is not physical inverse kinematics or collision checking.
+  const {shoulder,joint,tip}=visualArmGeometry(state.simTip||manualVisualTip(angles));
+  const d1="M"+shoulder.x+" "+shoulder.y+" L"+joint.x+" "+joint.y;
+  const d2="M"+joint.x+" "+joint.y+" L"+tip.x+" "+tip.y;
+  $("arm1").setAttribute("d",d1);
+  $("arm1Shadow").setAttribute("d",d1);
+  $("arm2").setAttribute("d",d2);
+  $("armBrace").setAttribute("d","M"+(shoulder.x+8)+" "+(shoulder.y-20)+" L"+(joint.x+8)+" "+(joint.y-20));
+  $("armJoint").setAttribute("cx",joint.x);
+  $("armJoint").setAttribute("cy",joint.y);
+  $("gripper").setAttribute("transform","translate("+tip.x+" "+tip.y+")");
   const wide=12+Math.abs(angles[3]-90)*.2;
   $("finger1").setAttribute("d","M-21 0 L-"+wide+" 22 L-8 22");
   $("finger2").setAttribute("d","M21 0 L"+wide+" 22 L8 22");
@@ -131,7 +155,7 @@ function buildSliders(){
     const title=document.createElement("strong");title.textContent=(i+1)+". "+label;
     const input=document.createElement("input");input.type="range";input.min=angleLimits[i][0];input.max=angleLimits[i][1];input.step="1";input.value=state.angles[i];input.id="joint"+i;input.setAttribute("aria-label",label+" 각도");
     const out=document.createElement("output");out.id="out"+i;out.textContent=state.angles[i]+"°";
-    input.addEventListener("input",()=>{state.angles[i]=Number(input.value);out.textContent=input.value+"°";renderRobot();});
+    input.addEventListener("input",()=>{if(state.running){refreshSliders();return;}state.angles[i]=Number(input.value);state.simTip=null;out.textContent=input.value+"°";renderRobot();});
     div.append(title,input,out);root.append(div);
   });
 }
@@ -175,18 +199,22 @@ function showModeWarning(){
   if(state.mode==="real" && !state.armed)throw new Error("아직 실물 제어가 허용되지 않았습니다.");
 }
 async function simulatedMove(angles,label,token){
-  const start=[...state.angles],duration=560,begin=performance.now();
+  const startAngles=[...state.angles];
+  const from=state.simTip||manualVisualTip(startAngles);
+  const target=targetForStep(label);
+  const duration=660,begin=performance.now();
   while(true) {
     if(state.cancelled || token!==state.runToken)throw new Error("동작이 중단되었습니다.");
     const t=Math.min(1,(performance.now()-begin)/duration);
     const eased=t*t*(3-2*t);
-    state.angles=start.map((v,i)=>Math.round(v+(angles[i]-v)*eased));
+    state.angles=startAngles.map((v,i)=>Math.round(v+(angles[i]-v)*eased));
+    state.simTip={x:from.x+(target.x-from.x)*eased,y:from.y+(target.y-from.y)*eased};
     refreshSliders();
     if(t>=1)break;
     await new Promise(ok=>requestAnimationFrame(ok));
   }
-  log("SIM "+label);
-  await sleep(110);
+  log("SIM "+label+" · 가상 집게 위치 이동");
+  await sleep(90);
 }
 async function physicalPose(angles,label){
   showModeWarning();
@@ -201,7 +229,8 @@ async function runPick(){
   if(!p)throw new Error("먼저 채팅 명령을 해석하세요.");
   if(state.running)throw new Error("다른 동작이 실행 중입니다.");
   if(!$("confirmAction").checked)throw new Error("작업 대상 및 주변 안전을 확인하고 승인란을 체크하세요.");
-  if(!$("visionConfirmed").checked)throw new Error("A·B·C 표식을 실제 작업대와 비교하고 직접 확인란을 체크하세요.");
+  if(needsPhysicalVerification(state.mode) && !$("visionConfirmed").checked)
+    throw new Error("실물 모드는 A·B·C의 표식을 직접 확인해야 합니다. 카메라·표식 확인 영역의 확인란을 체크하세요.");
   const slot=findSource({kind:"pick_place",shape:p.shape,source:p.slot,target:"BIN"},state.observations);
   if(slot!==p.slot)throw new Error("표식 관찰 결과가 변경되었습니다. 다시 해석하세요.");
   let sequence;
@@ -219,11 +248,21 @@ async function runPick(){
   $("execute").disabled=true;
   log((state.mode==="real"?"REAL":"SIM")+" "+slot+"칸 → 보관함 집기 시작");
   try{
-    for(const step of sequence){
+    for(let i=0;i<sequence.length;i++){
+      const step=sequence[i];
       status(step.label);
       if(state.mode==="real") await physicalPose(step.angles,step.label);
       else await simulatedMove(step.angles,step.label,token);
       if(state.cancelled)throw new Error("동작이 중지되었습니다.");
+      if(state.mode==="sim" && i===2){
+        $("object"+slot).style.opacity="0";
+        attachSimCarry(p.shape);
+        log("SIM "+slot+"칸 물체 집기 표현");
+      }
+      if(state.mode==="sim" && i===6){
+        clearSimCarry();
+        log("SIM 보관함에 물체 놓기 표현");
+      }
     }
     if(state.mode==="sim"){
       transferObject(slot);
@@ -236,8 +275,16 @@ async function runPick(){
     }
     status("작업 종료 · 결과 확인");
     setProposal(null);
-  }catch(err){notifyError(err)}
-  finally{state.running=false;$("execute").disabled=false}
+  }catch(err){
+    if(state.mode==="sim" && state.observations[slot])$("object"+slot).style.opacity="1";
+    clearSimCarry();
+    notifyError(err);
+  }
+  finally{
+    clearSimCarry();
+    state.running=false;
+    $("execute").disabled=false;
+  }
 }
 function ensurePhysicalLimits(angles){
   if(!validAngles(angles))throw new Error("각도 값이 0~180 범위를 벗어났습니다.");
