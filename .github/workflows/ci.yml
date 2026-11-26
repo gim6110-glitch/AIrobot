@@ -18,3 +18,11 @@ jobs:
           node --check netlify/functions/intent.mjs
       - name: Unit tests
         run: npm test
+      - name: Build Vercel and Netlify static site
+        run: npm run build
+      - name: Confirm browser entry and serverless API
+        run: |
+          test -s dist/index.html
+          test -s dist/app.js
+          node --check api/intent.js
+
