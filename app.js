@@ -704,6 +704,7 @@ async function predictSlots(){
   $("visionConfirmed").checked=false;
   setProposal(null);
   log("이미지 모델 예측: "+output.join(" · "));
+  sync3D(true);
 }
 function bind(id,event,fn){
   $(id).addEventListener(event,async e=>{
