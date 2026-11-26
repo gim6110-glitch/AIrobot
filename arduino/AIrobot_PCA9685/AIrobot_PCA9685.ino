@@ -29,6 +29,7 @@ bool armed = false;
 bool moving = false;
 bool pwmEnabled = false;
 bool stopLatched = false;
+int activeAxis = -1; // -1: all axes, 0..3: diagnostics of a single servo
 unsigned long lastStep = 0, lastContact = 0;
 char lineBuffer[90];
 uint8_t lineLength = 0;
@@ -45,6 +46,7 @@ void disableOutput() {
   for (uint8_t i = 0; i < AXES; ++i) driver.setPWM(CHANNELS[i], 0, 4096);
   pwmEnabled = false;
   moving = false;
+  activeAxis = -1;
 }
 void printAngles() {
   Serial.print(F("STATUS,"));
@@ -77,6 +79,18 @@ bool parsePose(const char* s, int out[4]) {
   }
   return true;
 }
+bool parseAxis(const char* s, int& axis, int& angle) {
+  if(!s || !*s) return false;
+  char* end;
+  long index=strtol(s,&end,10);
+  if(end==s || *end!=',' || index<0 || index>=AXES) return false;
+  char* next;
+  long requested=strtol(end+1,&next,10);
+  if(next==end+1 || *next!='\0' || requested<0 || requested>180) return false;
+  axis=(int)index;
+  angle=(int)requested;
+  return true;
+}
 void processLine(char* line) {
   lastContact = millis();
   if (!strcmp(line,"HELLO")) { Serial.println(F("READY AIROBOT/1")); return; }
@@ -91,6 +105,20 @@ void processLine(char* line) {
     Serial.println(F("ARMED"));
     return;
   }
+  if (!strncmp(line,"AXIS,",5)) {
+    if (!armed || stopLatched) { sendError(F("DISARMED")); return; }
+    if (moving) { sendError(F("BUSY")); return; }
+    int axis=-1, angle=-1;
+    if (!parseAxis(line+5,axis,angle)) { sendError(F("BAD_AXIS")); return; }
+    if (angle<MIN_DEG[axis] || angle>MAX_DEG[axis]) { sendError(F("LIMIT")); return; }
+    targetDeg[axis]=angle;
+    activeAxis=axis;
+    moving=true;
+    // Only the selected channel is written; initial activation may cause a
+    // sudden jump toward BOOT_DEG. Mechanically support the arm first.
+    Serial.println(F("ACK AXIS"));
+    return;
+  }
   if (!strncmp(line,"POSE,",5)) {
     if (!armed || stopLatched) { sendError(F("DISARMED")); return; }
     if (moving) { sendError(F("BUSY")); return; }
@@ -103,6 +131,7 @@ void processLine(char* line) {
     }
     for (int i=0;i<4;i++) targetDeg[i]=values[i];
     pwmEnabled=true;
+    activeAxis=-1;
     moving=true;
     Serial.println(F("ACK POSE"));
     return;
@@ -144,6 +173,7 @@ void loop() {
     lastStep=now;
     bool reached=true;
     for (int i=0;i<4;i++) {
+      if (activeAxis>=0 && i!=activeAxis) continue;
       if (currentDeg[i]!=targetDeg[i]) {
         reached=false;
         currentDeg[i]+= targetDeg[i]>currentDeg[i] ? min((int)STEP_DEG, targetDeg[i]-currentDeg[i]) :
@@ -151,6 +181,11 @@ void loop() {
       }
       driver.setPWM(CHANNELS[i],0,pulseCounts(i,currentDeg[i]));
     }
-    if (reached) { moving=false; Serial.println(F("DONE POSE")); }
+    if (reached) {
+      moving=false;
+      if(activeAxis>=0) Serial.println(F("DONE AXIS"));
+      else Serial.println(F("DONE POSE"));
+      activeAxis=-1;
+    }
   }
 }
