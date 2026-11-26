@@ -12,7 +12,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { MK2_REFERENCE } from "./kinematics.js";
 import { WORLD_WAYPOINTS } from "./simulator-motion.js";
 import {
- CAMERA_DEFAULT,CAMERA_TARGET,CAMERA_STAND,normalizeCameraConfig,cameraPosition,
+ CAMERA_DEFAULT,CAMERA_TARGET,CAMERA_STAND,normalizeCameraConfig,cameraPosition,cameraLensPosition,
  footprintCorners,gripObjectOrigin,fingerHalfGap,binItemOffset,ITEM_ORIGIN_BELOW_TIP_MM
 } from "./camera-layout.js";
 
@@ -149,7 +149,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   scene.background=new THREE.Color(0xeaf3f6);
   scene.fog=new THREE.Fog(0xeaf3f6,820,1350);
   const camera=new THREE.PerspectiveCamera(42,1,1,2200);
-  const defaultCamera=new THREE.Vector3(660,525,700),focus=new THREE.Vector3(180,65,18);
+  const defaultCamera=new THREE.Vector3(740,745,755),focus=new THREE.Vector3(205,218,20);
   camera.position.copy(defaultCamera);camera.lookAt(focus);
   const controls=new OrbitControls(camera,renderer.domElement);
   controls.target.copy(focus);controls.enableDamping=true;controls.dampingFactor=0.07;
@@ -157,9 +157,10 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   // Wheel scroll (without clicking) continues to zoom.
   controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:THREE.MOUSE.PAN};
   const cancelMiddleAutoscroll=e=>{if(e.button===1)e.preventDefault();};
-  renderer.domElement.addEventListener("mousedown",cancelMiddleAutoscroll);
+  renderer.domElement.addEventListener("pointerdown",cancelMiddleAutoscroll,{capture:true});
+  renderer.domElement.addEventListener("mousedown",cancelMiddleAutoscroll,{capture:true});
   renderer.domElement.addEventListener("auxclick",cancelMiddleAutoscroll);
-  controls.minDistance=230;controls.maxDistance=1220;
+  controls.minDistance=230;controls.maxDistance=1500;
   controls.maxPolarAngle=Math.PI/2-0.04;
   controls.update();
   scene.add(new THREE.HemisphereLight(0xffffff,0x8ca7b4,2.35));
@@ -213,9 +214,10 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   const cameraBoom=link(cameraRig,4.8,COLORS.metal);
   const standBase=disk(cameraRig,27,8,COLORS.ink,
     CAMERA_STAND.x,4,CAMERA_STAND.z);
-  const cameraHousing=block(cameraRig,43,23,31,COLORS.ink,0,0,0);
-  const cameraLens=disk(cameraRig,12,8,0x273747,0,0,0);
-  const cameraGlass=disk(cameraRig,7,1,COLORS.teal,0,0,0);
+  const cameraAssembly=new THREE.Group();cameraRig.add(cameraAssembly);
+  block(cameraAssembly,43,23,31,COLORS.ink,0,0,0);
+  disk(cameraAssembly,12,8,0x273747,0,-15,0);
+  disk(cameraAssembly,7,1,COLORS.teal,0,-20,0);
   const cameraLabel=textSprite(cameraRig,"작업대 카메라","#164a63",0.95);
   const footprintLines=new THREE.Group();scene.add(footprintLines);
   let mountedConfig={...CAMERA_DEFAULT},isMountedCameraView=false;
@@ -245,13 +247,15 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     placeLink(cameraBoom,
       {x:CAMERA_STAND.x,y:mountedConfig.heightMm+26,z:CAMERA_STAND.z},
       {x:pos.x,y:mountedConfig.heightMm+26,z:pos.z});
-    cameraHousing.position.set(pos.x,pos.y,pos.z);
-    cameraLens.position.set(pos.x,pos.y-15,pos.z);
-    cameraGlass.position.set(pos.x,pos.y-20,pos.z);
+    cameraAssembly.position.set(pos.x,pos.y,pos.z);
+    const opticalDirection=new THREE.Vector3(CAMERA_TARGET.x-pos.x,CAMERA_TARGET.y-pos.y,CAMERA_TARGET.z-pos.z).normalize();
+    cameraAssembly.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),opticalDirection);
     cameraLabel.position.set(pos.x,pos.y+36,pos.z);
     disposeLines(footprintLines);
     if(mountedConfig.showFootprint){
       const corners=footprintCorners(mountedConfig,16/9);
+      segmentLine(cameraLensPosition(mountedConfig),
+        {x:CAMERA_TARGET.x,y:5,z:CAMERA_TARGET.z},COLORS.amber,0.65);
       for(let i=0;i<4;i++){
         segmentLine(pos,corners[i],COLORS.teal,0.42);
         segmentLine(corners[i],corners[(i+1)%4],COLORS.teal,0.88);
@@ -267,10 +271,13 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     controls.enabled=false;
     cameraRig.visible=false;
     footprintLines.visible=false;
-    camera.position.set(pos.x,pos.y-24,pos.z);
+    const lens=cameraLensPosition(mountedConfig);
+    camera.position.set(lens.x,lens.y,lens.z);
     camera.fov=mountedConfig.fovDeg;
-    camera.updateProjectionMatrix();
+    // A (-Z) is screen-left, C (+Z) is screen-right; stable even straight down.
+    camera.up.set(1,0,0);
     camera.lookAt(CAMERA_TARGET.x,0,CAMERA_TARGET.z);
+    camera.updateProjectionMatrix();
   }
   // EEZYbotARM Mk2-inspired articulated skeleton with reference link lengths.
   disk(scene,61,12,COLORS.ink,0,0,0);
@@ -292,6 +299,9 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   const palm=block(tipGroup,29,15,24,COLORS.orange,0,5,0);
   const leftFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,-15);
   const rightFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,15);
+  // Rubber-look pads grip the common circular carrier, regardless of its symbol.
+  block(leftFinger,9,14,2,COLORS.ink,0,-3,4);
+  block(rightFinger,9,14,2,COLORS.ink,0,-3,-4);
   // The carried object's center is attached in the GRIPPER LOCAL FRAME:
   // it can no longer drift sideways when the base yaw changes.
   const carried=new THREE.Group();
@@ -372,7 +382,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   function resetCamera(){
     isMountedCameraView=false;cameraRig.visible=true;
     footprintLines.visible=true;controls.enabled=true;
-    camera.fov=42;camera.updateProjectionMatrix();
+    camera.fov=42;camera.up.copy(up);camera.updateProjectionMatrix();
     camera.position.copy(defaultCamera);controls.target.copy(focus);controls.update();
   }
   let disposed=false,raf=0;
@@ -392,7 +402,8 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     update,resetCamera,resize,updateCameraMount,viewFromMountedCamera,
     dispose(){
       disposed=true;cancelAnimationFrame(raf);observer.disconnect();controls.dispose();
-      renderer.domElement.removeEventListener("mousedown",cancelMiddleAutoscroll);
+      renderer.domElement.removeEventListener("pointerdown",cancelMiddleAutoscroll,true);
+      renderer.domElement.removeEventListener("mousedown",cancelMiddleAutoscroll,true);
       renderer.domElement.removeEventListener("auxclick",cancelMiddleAutoscroll);
       scene.traverse(o=>{
         if(o.geometry)o.geometry.dispose();
