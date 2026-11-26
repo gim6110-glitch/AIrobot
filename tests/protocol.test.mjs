@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseLocalIntent, normalizeIntent, findSource, buildPickSequence,
-         poseLine, serialWhitelist, normalizeShape, messageLine } from "../protocol.js";
+         poseLine, axisLine, serialWhitelist, normalizeShape, messageLine } from "../protocol.js";
 
 test("한국어 작업 요청의 대상·목적지 파악", ()=>{
   const cmd=parseLocalIntent("B칸의 삼각형을 보관함에 넣어 줘");
@@ -52,4 +52,11 @@ test("Arduino에 전송하는 문자열은 화이트리스트",()=>{
 test("Arduino 완료 응답은 물리적 집기 성공 판정이 아님",()=>{
   assert.equal(messageLine("DONE POSE").type,"DONE");
   assert.equal(messageLine("STOPPED WATCHDOG").type,"STOPPED");
+});
+test("안전한 축별 점검 명령은 지정된 서보 하나만 선택",()=>{
+  assert.equal(axisLine(2,90),"AXIS,2,90\\n".replace("\\n","\n"));
+  assert.equal(serialWhitelist(axisLine(0,80)),true);
+  assert.equal(serialWhitelist("AXIS,4,90\n"),false);
+  assert.throws(()=>axisLine(4,90));
+  assert.throws(()=>axisLine(1,181));
 });
