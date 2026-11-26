@@ -287,9 +287,12 @@ async function runPick(){
   const reverse=p.kind==="return";
   let slot,selected;
   if(reverse){
-    selected=resolveBinReturn({kind:"return_place",source:"BIN",shape:p.shape,target:p.destination},state.transferred,state.observations);
-    if(selected.index!==p.index || selected.origin!==p.origin || selected.destination!==p.destination)
-      throw new Error("보관함 기록이 변경되었습니다. 명령을 다시 입력해 주세요.");
+    const current=state.transferred[p.index];
+    if(!current || current.shape!==p.shape || current.origin!==p.origin)
+      throw new Error("보관함 내용이 변경되었습니다. 명령을 다시 입력해 주세요.");
+    if(state.observations[p.destination])
+      throw new Error(p.destination+"칸에 이미 물체가 있어 반환할 수 없습니다.");
+    selected={index:p.index,shape:p.shape,origin:p.origin,destination:p.destination};
     slot=selected.destination;
   }else {
     slot=findSource({kind:"pick_place",shape:p.shape,source:p.slot,target:"BIN"},state.observations);
