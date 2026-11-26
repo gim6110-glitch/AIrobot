@@ -145,3 +145,12 @@ test("mounted camera uses a letterboxed 16:9 optical viewport",async()=>{
   assert.ok(src.includes("renderer.setScissor(x,y,width,height)"));
   assert.ok(src.includes("segmentLine(cameraLensPosition(mountedConfig),corners[i]"));
 });
+
+test("actual webcam overlay never crops an image that the classifier sees in full",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const css=await readFile(new URL("../styles.css",import.meta.url),"utf8");
+  const js=await readFile(new URL("../app.js",import.meta.url),"utf8");
+  assert.ok(css.includes("object-fit:contain"));
+  assert.ok(js.includes("video.parentElement.style.aspectRatio"));
+  assert.ok(js.includes("aspectRatio:{ideal:16/9}"));
+});
