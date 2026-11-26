@@ -146,6 +146,12 @@
       <div class="panel-title"><div><span class="kicker">JOINT CONTROL</span><h2>키보드 · 수동 조작</h2></div></div>
       <p class="hint">화면의 관절 각도는 개념 표현입니다. 실물 연결 시 각도 범위를 먼저 확인하고 무부하로 한 축씩 움직이세요.</p>
       <div id="sliders"></div>
+      <div class="axis-check">
+        <label for="axisSelect">축별 안전 점검</label>
+        <select id="axisSelect"><option value="0">1 · 베이스</option><option value="1">2 · 어깨</option><option value="2">3 · 팔꿈치</option><option value="3">4 · 집게</option></select>
+        <button class="btn warning" type="button" id="testAxis">선택한 축만 시험</button>
+      </div>
+      <p class="hint">첫 실제 모터 출력 때는 서보가 현재 위치에서 갑자기 움직일 수 있습니다. 팔을 받침대로 지지하고 사람과 물체를 치운 뒤 축별로 저속 시험하세요. 이는 비상 정지 장치가 아닙니다.</p>
       <div class="manual-row"><button id="sendPose" class="btn blue">관절 각도 전송</button><button id="home" class="btn subtle">HOME 자세</button></div>
       <p class="hint">키보드: 1~4로 관절 선택, ←/→로 ±2°, Space로 소프트웨어 정지 (텍스트 입력 중 제외)</p>
     </section>
