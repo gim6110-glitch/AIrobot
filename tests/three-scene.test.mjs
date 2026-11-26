@@ -48,3 +48,14 @@ test("3D interpolated animation stays between start and destination",()=>{
   const middle=lerpWorld(first,last,0.5);
   for(const axis of ["x","y","z"])assert.ok(middle[axis]>=Math.min(first[axis],last[axis])&&middle[axis]<=Math.max(first[axis],last[axis]));
 });
+
+test("all three bin pickup/drop positions remain inside the visual arm's reachable envelope",()=>{
+  for(let i=0;i<3;i++){
+    for(const name of ["PLACE_BIN","HOVER_BIN"]){
+      const pos=worldTargetForStep(name,{binIndex:i});
+      const joints=visualJoints([90,90,90,90],pos);
+      assert.equal(joints.unreachable,false,name+" index "+i);
+      assert.ok(distance(joints.tip,pos)<1.01);
+    }
+  }
+});

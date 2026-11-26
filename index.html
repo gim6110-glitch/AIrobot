@@ -95,20 +95,20 @@
       </div>
       <details class="camera-mount-settings" id="cameraMountPanel">
         <summary>촬영용 카메라 설치 위치 설정 <span>실물 거치대 참고 · 3D 미리보기</span></summary>
-        <p class="hint">권장 시작 위치: 로봇 베이스 기준 정면 X 약 +32cm, 좌우 Z 약 -2cm, 카메라 몸체 높이 약 55cm. 작업대 가장자리의 독립 거치대에 고정하고 렌즈를 A·B·C 및 보관함 중앙으로 기울이세요. 움직이는 로봇팔이나 집게에 부착하지 마세요.</p>
+        <p class="hint">촬영 작업판은 앞뒤(X) 24cm × 좌우(Z) 42.8cm입니다. 새 권장 시작 위치: 로봇 베이스 기준 X +26cm, Z +3cm, 카메라 몸체 높이 34cm. 렌즈를 판에 수직으로 향하게 하고, 거치대는 작업대 가장자리에 별도로 고정하세요. 실제 웹캠의 화각과 높이는 촬영 영상을 보고 보정해야 합니다.</p>
         <div class="camera-mount-grid">
-          <label>작업대에서 카메라 높이 <output id="cameraHeightOut">55 cm</output><input id="cameraHeight" type="range" min="36" max="80" step="1" value="55"/></label>
-          <label>정면 방향 X 오프셋 <output id="cameraOffsetXOut">+5.5 cm</output><input id="cameraOffsetX" type="range" min="-15" max="15" step="0.5" value="5.5"/></label>
-          <label>좌우 방향 Z 오프셋 <output id="cameraOffsetZOut">-4.5 cm</output><input id="cameraOffsetZ" type="range" min="-15" max="15" step="0.5" value="-4.5"/></label>
-          <label>카메라 화각(참고) <output id="cameraFovOut">65°</output><input id="cameraFov" type="range" min="45" max="95" step="5" value="65"/></label>
+          <label>작업대에서 카메라 높이 <output id="cameraHeightOut">34 cm</output><input id="cameraHeight" type="range" min="27" max="65" step="1" value="34"/></label>
+          <label>정면 방향 X 오프셋 <output id="cameraOffsetXOut">+0.0 cm</output><input id="cameraOffsetX" type="range" min="-15" max="15" step="0.5" value="0"/></label>
+          <label>좌우 방향 Z 오프셋 <output id="cameraOffsetZOut">+0.0 cm</output><input id="cameraOffsetZ" type="range" min="-15" max="15" step="0.5" value="0"/></label>
+          <label>카메라 세로 화각(참고) <output id="cameraFovOut">42°</output><input id="cameraFov" type="range" min="35" max="80" step="1" value="42"/></label>
         </div>
         <label class="camera-mount-check"><input id="cameraFootprint" type="checkbox" checked/> 작업대의 예상 촬영 범위 표시</label>
         <div class="manual-row">
           <button id="viewFromMountedCamera" class="btn blue" type="button">설치한 카메라 시점에서 보기</button>
           <button id="resetCameraMount" class="btn subtle" type="button">권장 위치로 되돌리기</button>
         </div>
-        <p id="cameraMountInfo" class="hint" aria-live="polite">권장 시작값: 높이 약 55cm. 실제 화각·해상도·가림 현상은 카메라 영상으로 확인해야 합니다.</p>
-        <p class="hint">3D 카메라 화각은 16:9 웹캠을 가정한 예상 범위입니다. 실물에서 거치대 높이·기울기·조명과 로봇팔 가림을 확인하고 웹캠 영상으로 A4 평면 보정을 다시 진행하세요. 물체의 높이·깊이 측정은 지원하지 않습니다.</p>
+        <p id="cameraMountInfo" class="hint" aria-live="polite">권장 시작값: 높이 34cm, 세로 화각 42°, 영상 비율 16:9. 아래 촬영 작업판과 녹색 시야 테두리를 일치시켰습니다.</p>
+        <p class="hint">3D 카메라 시점에는 검은 여백을 적용해 16:9 화면 비율을 유지합니다. 촬영판과 시야가 어긋나면 위 설정을 조정하고 상태 안내를 확인하세요. 화각은 16:9 웹캠을 가정한 예상 범위입니다. 실물에서 거치대 높이·기울기·조명과 로봇팔 가림을 확인하고 웹캠 영상으로 A4 평면 보정을 다시 진행하세요. 물체의 높이·깊이 측정은 지원하지 않습니다.</p>
       </details>
       <div class="lab-footer">
         <div><strong>작업대 A·B·C · 3D 시뮬레이터</strong><span>3D 모델은 EEZYbotARM Mk2 참고 치수로 구성한 개념 형상이며, 실물 관절 영점·충돌을 검증한 모델은 아닙니다. <span id="binSummary">보관함 비어 있음</span></span></div>
@@ -126,7 +126,7 @@
       </div>
       <details class="subpanel">
         <summary>웹캠 및 학습된 이미지 모델 연결 <span>선택 사항</span></summary>
-        <p class="hint">카메라를 고정하고 거치대 카메라의 촬영 방향을 고정하고 A·B·C를 화면의 왼쪽·가운데·오른쪽에 맞춘 다음, 학습된 Teachable Machine 이미지 모델 URL을 입력하세요. 세 영역을 각각 분류합니다. 분류 결과는 반드시 실제 작업대와 비교하세요.</p>
+        <p class="hint">독립 카메라를 고정하여 A·B·C가 왼쪽·가운데·오른쪽에 오도록 맞추세요. 보관함도 같은 화면에 보이지만 C칸의 이미지 분류 영역에 일부 포함될 수 있으므로, 실제 물체를 각각 중앙에 놓고 AI 결과를 직접 검증하세요. 3등분 분류는 물체 위치 추적이 아닙니다.</p>
         <div class="camera-grid">
           <div class="video-box"><video id="camera" autoplay muted playsinline aria-label="카메라 영상"></video><div class="camera-guide"><span>A</span><span>B</span><span>C</span></div></div>
           <div class="camera-buttons"><button class="btn subtle" id="startCamera">카메라 켜기</button><button class="btn subtle" id="stopCamera">카메라 끄기</button><label for="modelUrl">Teachable Machine 모델 URL</label><input id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/..." /><button class="btn blue" id="loadModel">모델 불러오기</button><button class="btn primary" id="predict">A·B·C 사진 분류</button></div>

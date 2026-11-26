@@ -12,8 +12,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { MK2_REFERENCE } from "./kinematics.js";
 import { WORLD_WAYPOINTS } from "./simulator-motion.js";
 import {
- CAMERA_DEFAULT,CAMERA_TARGET,CAMERA_STAND,normalizeCameraConfig,cameraPosition,cameraLensPosition,
- footprintCorners,gripObjectOrigin,fingerHalfGap,binItemOffset,ITEM_ORIGIN_BELOW_TIP_MM
+ CAMERA_DEFAULT,CAMERA_TARGET,CAMERA_STAND,CAMERA_ASPECT,WORK_SURFACE,SLOT_CENTERS,SLOT_SIZE_MM,
+ BIN_CENTER,BIN_SIZE_MM,normalizeCameraConfig,cameraPosition,cameraLensPosition,
+ footprintCorners,fingerHalfGap,binItemOffset,ITEM_ORIGIN_BELOW_TIP_MM
 } from "./camera-layout.js";
 
 const COLORS={orange:0xe75d2a,orangeDark:0xb83c1a,ink:0x233e50,
@@ -176,34 +177,42 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   block(scene,650,8,480,COLORS.metal,195,-22,35);
   const grid=new THREE.GridHelper(580,20,0xb8cdd4,0xd4e2e8);
   grid.position.set(195,-2,36);scene.add(grid);
-  const floorOutline=block(scene,585,3,425,COLORS.amber,200,0,38);
-  const inner=block(scene,577,3.6,417,COLORS.table,200,2,38);
+  // The gold rim marks the actual camera zone: 240 x 428 mm at 16:9.
+  const floorOutline=block(scene,WORK_SURFACE.widthX+8,3,WORK_SURFACE.depthZ+8,
+    COLORS.amber,WORK_SURFACE.x,0,WORK_SURFACE.z);
+  const inner=block(scene,WORK_SURFACE.widthX,3.6,WORK_SURFACE.depthZ,
+    COLORS.table,WORK_SURFACE.x,2,WORK_SURFACE.z);
   floorOutline.castShadow=false;inner.castShadow=false;
-  const positions={A:{x:240,y:2,z:-115},B:{x:267,y:2,z:0},C:{x:240,y:2,z:115}};
+  const positions=SLOT_CENTERS;
   const slotObjects={};
   for(const slot of ["A","B","C"]){
     const p=positions[slot];
-    const pad=block(scene,75,4,75,slot==="B"?0xd5f4e9:0xffffff,p.x,5,p.z);
+    const pad=block(scene,SLOT_SIZE_MM-5,4,SLOT_SIZE_MM-5,
+      slot==="B"?0xd5f4e9:0xffffff,p.x,5,p.z);
     pad.material=material(slot==="B"?0xdff7ed:0xffffff);
-    const border=block(scene,80,2,80,slot==="B"?COLORS.teal:COLORS.metal,p.x,3,p.z);
+    const border=block(scene,SLOT_SIZE_MM,2,SLOT_SIZE_MM,
+      slot==="B"?COLORS.teal:COLORS.metal,p.x,3,p.z);
     border.castShadow=false;
     pad.position.y=6;
     const label=textSprite(scene,slot,"#0a4b5c",0.6);
-    label.position.set(p.x,60,p.z);
+    // Labels on the pad edge do not obscure the symbols in overhead images.
+    label.position.set(p.x-27,17,p.z);
     const objectHolder=new THREE.Group();objectHolder.position.set(p.x,9,p.z);
     scene.add(objectHolder);slotObjects[slot]=objectHolder;
   }
-  const binPosition={x:310,y:0,z:170};
+  const binPosition=BIN_CENTER;
   const binGroup=new THREE.Group();
   binGroup.position.set(binPosition.x,0,binPosition.z);
   scene.add(binGroup);
-  block(binGroup,104,8,82,COLORS.ink,0,8,0);
-  block(binGroup,106,54,6,COLORS.navy,0,31,-40);
-  block(binGroup,106,54,6,COLORS.navy,0,31,40);
-  block(binGroup,6,54,82,COLORS.navy,-51,31,0);
-  block(binGroup,6,54,82,COLORS.navy,51,31,0);
-  const binTitle=textSprite(scene,"보관함","#163f59",0.85);
-  binTitle.position.set(binPosition.x,98,binPosition.z);
+  const bx=BIN_SIZE_MM.widthX,bz=BIN_SIZE_MM.depthZ,wall=BIN_SIZE_MM.wall;
+  block(binGroup,bx-2,8,bz,COLORS.ink,0,8,0);
+  block(binGroup,bx,54,wall,COLORS.navy,0,31,-(bz-wall)/2);
+  block(binGroup,bx,54,wall,COLORS.navy,0,31,(bz-wall)/2);
+  block(binGroup,wall,54,bz,COLORS.navy,-(bx-wall)/2,31,0);
+  block(binGroup,wall,54,bz,COLORS.navy,(bx-wall)/2,31,0);
+  // Keep the bin label outside the container so it never hides its contents.
+  const binTitle=textSprite(scene,"보관함","#163f59",0.65);
+  binTitle.position.set(binPosition.x,16,binPosition.z+69);
   const binItemsGroup=new THREE.Group();binItemsGroup.position.set(binPosition.x,12,binPosition.z);
   scene.add(binItemsGroup);
 
@@ -212,6 +221,7 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   const cameraRig=new THREE.Group();scene.add(cameraRig);
   const cameraPost=link(cameraRig,5,COLORS.metal);
   const cameraBoom=link(cameraRig,4.8,COLORS.metal);
+  const cameraBracket=link(cameraRig,2.4,COLORS.metal);
   const standBase=disk(cameraRig,27,8,COLORS.ink,
     CAMERA_STAND.x,4,CAMERA_STAND.z);
   const cameraAssembly=new THREE.Group();cameraRig.add(cameraAssembly);
@@ -247,23 +257,27 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     placeLink(cameraBoom,
       {x:CAMERA_STAND.x,y:mountedConfig.heightMm+26,z:CAMERA_STAND.z},
       {x:pos.x,y:mountedConfig.heightMm+26,z:pos.z});
+    placeLink(cameraBracket,
+      {x:pos.x,y:mountedConfig.heightMm+26,z:pos.z},
+      {x:pos.x,y:mountedConfig.heightMm+11,z:pos.z});
     cameraAssembly.position.set(pos.x,pos.y,pos.z);
     const opticalDirection=new THREE.Vector3(CAMERA_TARGET.x-pos.x,CAMERA_TARGET.y-pos.y,CAMERA_TARGET.z-pos.z).normalize();
     cameraAssembly.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),opticalDirection);
     cameraLabel.position.set(pos.x,pos.y+36,pos.z);
     disposeLines(footprintLines);
-    if(mountedConfig.showFootprint){
-      const corners=footprintCorners(mountedConfig,16/9);
+    let corners=null;
+    try{corners=footprintCorners(mountedConfig,CAMERA_ASPECT);}
+    catch{onWarning("카메라 화각·기울기가 작업대 평면을 벗어납니다. 권장 위치로 되돌리세요.");}
+    if(mountedConfig.showFootprint&&corners){
       segmentLine(cameraLensPosition(mountedConfig),
         {x:CAMERA_TARGET.x,y:5,z:CAMERA_TARGET.z},COLORS.amber,0.65);
       for(let i=0;i<4;i++){
-        segmentLine(pos,corners[i],COLORS.teal,0.42);
+        segmentLine(cameraLensPosition(mountedConfig),corners[i],COLORS.teal,0.42);
         segmentLine(corners[i],corners[(i+1)%4],COLORS.teal,0.88);
       }
     }
     if(isMountedCameraView)viewFromMountedCamera();
-    return {position:pos,footprint:mountedConfig.showFootprint?
-      footprintCorners(mountedConfig,16/9):null};
+    return {position:pos,footprint:mountedConfig.showFootprint?corners:null};
   }
   function viewFromMountedCamera(){
     isMountedCameraView=true;
@@ -276,8 +290,9 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
     camera.fov=mountedConfig.fovDeg;
     // A (-Z) is screen-left, C (+Z) is screen-right; stable even straight down.
     camera.up.set(1,0,0);
-    camera.lookAt(CAMERA_TARGET.x,0,CAMERA_TARGET.z);
+    camera.lookAt(CAMERA_TARGET.x,CAMERA_TARGET.y,CAMERA_TARGET.z);
     camera.updateProjectionMatrix();
+    resize();
   }
   // EEZYbotARM Mk2-inspired articulated skeleton with reference link lengths.
   disk(scene,61,12,COLORS.ink,0,0,0);
@@ -297,8 +312,8 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
   toolJoint.rotation.x=Math.PI/2;
   const tipGroup=new THREE.Group();scene.add(tipGroup);
   const palm=block(tipGroup,29,15,24,COLORS.orange,0,5,0);
-  const leftFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,-15);
-  const rightFinger=block(tipGroup,10,30,9,COLORS.orangeDark,0,-12,15);
+  const leftFinger=block(tipGroup,10,26,9,COLORS.orangeDark,0,-10,-15);
+  const rightFinger=block(tipGroup,10,26,9,COLORS.orangeDark,0,-10,15);
   // Rubber-look pads grip the common circular carrier, regardless of its symbol.
   block(leftFinger,9,14,2,COLORS.ink,0,-3,4);
   block(rightFinger,9,14,2,COLORS.ink,0,-3,-4);
@@ -373,24 +388,46 @@ export function create3DScene(host,{onWarning=()=>{}}={}){
        carrying!==undefined||hiddenSource!==undefined||previewAtSlot!==undefined||previewInBin!==undefined)
        refreshObjects();
   }
+  let viewportWidth=480,viewportHeight=480;
   function resize(){
-    const width=Math.max(320,host.clientWidth);
-    const height=Math.max(270,host.clientHeight);
-    camera.aspect=width/height;camera.updateProjectionMatrix();
-    renderer.setSize(width,height,false);
+    viewportWidth=Math.max(320,host.clientWidth);
+    viewportHeight=Math.max(270,host.clientHeight);
+    camera.aspect=isMountedCameraView?CAMERA_ASPECT:viewportWidth/viewportHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewportWidth,viewportHeight,false);
   }
   function resetCamera(){
     isMountedCameraView=false;cameraRig.visible=true;
     footprintLines.visible=true;controls.enabled=true;
     camera.fov=42;camera.up.copy(up);camera.updateProjectionMatrix();
     camera.position.copy(defaultCamera);controls.target.copy(focus);controls.update();
+    resize();
   }
   let disposed=false,raf=0;
   function frame(){
     if(disposed)return;
     raf=requestAnimationFrame(frame);
     if(!host.hidden){
-      controls.update();renderer.render(scene,camera);
+      controls.update();
+      if(isMountedCameraView){
+        // Match the optical footprint, even when the responsive panel is not 16:9.
+        const width=Math.min(viewportWidth,Math.floor(viewportHeight*CAMERA_ASPECT));
+        const height=Math.floor(width/CAMERA_ASPECT);
+        const x=Math.floor((viewportWidth-width)/2),y=Math.floor((viewportHeight-height)/2);
+        renderer.setScissorTest(false);
+        renderer.setClearColor(0x203747);
+        renderer.clear();
+        renderer.setViewport(x,y,width,height);
+        renderer.setScissor(x,y,width,height);
+        renderer.setScissorTest(true);
+        renderer.render(scene,camera);
+        renderer.setScissorTest(false);
+      }else{
+        renderer.setClearColor(0xeaf3f6);
+        renderer.setViewport(0,0,viewportWidth,viewportHeight);
+        renderer.setScissorTest(false);
+        renderer.render(scene,camera);
+      }
     }
   }
   const observer=new ResizeObserver(resize);
