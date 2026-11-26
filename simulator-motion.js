@@ -1,3 +1,4 @@
+import { binItemOffset } from "./camera-layout.js";
 /**
  * Visual-only 2D arm waypoints.
  * Does NOT calculate actual Mk2 inverse kinematics or collision clearance.
@@ -15,15 +16,19 @@ export const SIM_WAYPOINTS = Object.freeze({
  */
 export const WORLD_WAYPOINTS=Object.freeze({
   HOME:{x:195,y:204,z:0},
-  HOVER_A:{x:240,y:122,z:-115},PICK_A:{x:240,y:48,z:-115},
-  HOVER_B:{x:267,y:122,z:0},PICK_B:{x:267,y:48,z:0},
-  HOVER_C:{x:240,y:122,z:115},PICK_C:{x:240,y:48,z:115},
-  HOVER_BIN:{x:310,y:135,z:170},PLACE_BIN:{x:310,y:60,z:170}
+  HOVER_A:{x:240,y:122,z:-115},PICK_A:{x:240,y:34,z:-115},
+  HOVER_B:{x:267,y:122,z:0},PICK_B:{x:267,y:34,z:0},
+  HOVER_C:{x:240,y:122,z:115},PICK_C:{x:240,y:34,z:115},
+  HOVER_BIN:{x:310,y:135,z:170},PLACE_BIN:{x:310,y:37,z:170}
 });
-export function worldTargetForStep(label){
+export function worldTargetForStep(label,{binIndex=0}={}){
   const key=String(label||"").split(" ")[0];
   const v=WORLD_WAYPOINTS[key];
   if(!v)throw new Error("알 수 없는 3D 시뮬레이션 위치: "+key);
+  if(key==="HOVER_BIN"||key==="PLACE_BIN"){
+    const offset=binItemOffset(binIndex);
+    return {x:v.x+offset.x,y:v.y+offset.y,z:v.z+offset.z};
+  }
   return {...v};
 }
 export function lerpWorld(a,b,t){
