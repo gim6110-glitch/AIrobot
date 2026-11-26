@@ -720,8 +720,15 @@ function loadPose(){
 async function startCamera(){
   if(!navigator.mediaDevices?.getUserMedia)throw new Error("HTTPS 및 카메라 권한이 필요합니다.");
   if(state.stream)return;
-  const stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720,facingMode:"environment"},audio:false});
-  state.stream=stream;$("camera").srcObject=stream;await $("camera").play();
+  const stream=await navigator.mediaDevices.getUserMedia({video:{
+    width:{ideal:1280},height:{ideal:720},aspectRatio:{ideal:16/9},facingMode:"environment"
+  },audio:false});
+  state.stream=stream;
+  const video=$("camera");
+  video.srcObject=stream;await video.play();
+  // The overlay and raw A/B/C third-crops must use the same video aspect.
+  if(video.videoWidth&&video.videoHeight)
+    video.parentElement.style.aspectRatio=video.videoWidth+" / "+video.videoHeight;
   log("웹캠 켜짐. A·B·C가 화면의 세 영역에 정확히 있는지 확인하세요.");
 }
 function stopCamera(){
