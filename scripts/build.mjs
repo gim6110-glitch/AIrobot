@@ -7,7 +7,7 @@ const root=fileURLToPath(new URL("../",import.meta.url));
 const dist=path.join(root,"dist");
 await rm(dist,{recursive:true,force:true});
 await mkdir(dist,{recursive:true});
-for(const file of ["index.html","styles.css"]){
+for(const file of ["index.html","styles.css","student-lab.html","student-lab.js","kinematics.js","camera-layout.js"]){
   await copyFile(path.join(root,file),path.join(dist,file));
 }
 // Bundle Three.js and OrbitControls locally; deployed pages do not rely on
