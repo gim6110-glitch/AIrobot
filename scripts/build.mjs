@@ -7,7 +7,7 @@ const root=fileURLToPath(new URL("../",import.meta.url));
 const dist=path.join(root,"dist");
 await rm(dist,{recursive:true,force:true});
 await mkdir(dist,{recursive:true});
-for(const file of ["index.html","styles.css"]){
+for(const file of ["index.html","styles.css","student-lab.html","kinematics.js","camera-layout.js"]){
   await copyFile(path.join(root,file),path.join(dist,file));
 }
 // Bundle Three.js and OrbitControls locally; deployed pages do not rely on
@@ -24,4 +24,5 @@ await build({
   legalComments:"linked",
   logLevel:"info"
 });
+await build({entryPoints:[path.join(root,"student-lab.js")],outfile:path.join(dist,"student-lab.js"),bundle:true,format:"esm",platform:"browser",target:["es2022"],legalComments:"linked",logLevel:"info"});
 console.log("AIrobot static app built with the embedded interactive Three.js scene.");
